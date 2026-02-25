@@ -41,6 +41,9 @@ class DoubleBootstrap:
         The function used to calculate the statistic of interest.
         Must follow the signature ``f(data) -> float``.
 
+    axis : int, optional
+        The axis along which to compute the statistic. Defaults to 0.
+
     Raises
     ------
     ValueError
@@ -52,6 +55,7 @@ class DoubleBootstrap:
         self,
         data_sample: npt.ArrayLike,
         statistic: Callable[[npt.ArrayLike], float],
+        axis: int = 0,
     ) -> None:
         try:
             self._data_sample = np.asarray(data_sample, dtype=np.float64)
@@ -64,20 +68,21 @@ class DoubleBootstrap:
                 "Input data sample is empty. Cannot perform bootstrap"
             )
 
-        # Convert a one-dimensional (row) vector of shape (n,) to (n, 1) to
-        # unify the implementation to multivariate data
-        if self._data_sample.ndim == 1:
-            self._data_sample = self._data_sample.reshape(-1, 1)
+        # # Convert a one-dimensional (row) vector of shape (n,) to (n, 1) to
+        # # unify the implementation to multivariate data
+        # if self._data_sample.ndim == 1:
+        #     self._data_sample = self._data_sample.reshape(-1, 1)
 
         self._statistic = statistic
+        self._axis = axis
 
-    # TODO: Add a quantile estimation method param
     def confidence_interval(
         self,
         confidence_level: float = 0.95,
         side: Literal["two", "left", "right"] = "two",
         B1_resamples: int = 1000,
         B2_resamples: int = 250,
+        q_est_method: str = "median_unbiased",
         seed: Optional[int] = None,
     ) -> ConfidenceInterval:
         """
@@ -95,6 +100,9 @@ class DoubleBootstrap:
         B2_resamples : int, optional
             Number of bootstrap resamples in the second level for calibration
             of the percentile method. Defaults to 250.
+        q_est_method: str, optional
+            Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
+            Defaults to "median_unbiased".
         seed : int, optional
             Seed for the random number generator. Defaults to None.
 
@@ -130,6 +138,7 @@ class DoubleBootstrap:
             side,
             B1_resamples,
             B2_resamples,
+            q_est_method,
             rng,
         )
 
@@ -141,6 +150,7 @@ class DoubleBootstrap:
         side: Literal["two", "left", "right"],
         B1: int,
         B2: int,
+        q_est_method: str,
         rng: Generator,
     ) -> ConfidenceInterval:
         """
@@ -159,6 +169,8 @@ class DoubleBootstrap:
         B2 : int, optional
             Number of bootstrap resamples in the second level for calibration
             of the percentile method.
+        q_est_method: str
+            Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
         rng : Generator
             Numpy random number generator.
 
@@ -183,7 +195,8 @@ class DoubleBootstrap:
         cdf_evals: list[float] = []
 
         for b1_indices in b1_matrix:
-            b1_data = self._data_sample[b1_indices]
+            # Use np.take to index along the specified axis to unify the implementation for multi-dimensional data
+            b1_data = np.take(self._data_sample, b1_indices, axis=self._axis)
 
             # Store statistic evaluated on the bootstrapped dataset
             l1_estimates.append(self._statistic(b1_data))
@@ -198,7 +211,9 @@ class DoubleBootstrap:
             # Compute the level 2 estimates
             l2_estimates = np.array(
                 [
-                    self._statistic(b1_data[b2_indices])
+                    self._statistic(
+                        np.take(b1_data, b2_indices, axis=self._axis)
+                    )
                     for b2_indices in b2_matrix
                 ]
             )
@@ -206,8 +221,6 @@ class DoubleBootstrap:
             cdf_evals.append(eval)
 
         # Quantile estimation method
-        # TODO: make this a param of the function
-        q_est_method = "median_unbiased"
         alpha = 1 - confidence_level
 
         # Adjust values to get more accurate coverage
