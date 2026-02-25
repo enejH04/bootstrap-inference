@@ -33,9 +33,7 @@ class DoubleBootstrap:
     ----------
     data_sample : npt.ArrayLike
         A dataset that can be converted to a NumPy array of floats.
-        For multivariate data, the array must have shape ``(n, d)``, where ``n``
-        is the number of observations and ``d`` the dimension of the observed
-        data points.
+        For multivariate data, the statistical functional will be computed along the specified ``axis``.
 
     statistic : Callable[[npt.ArrayLike], float]
         The function used to calculate the statistic of interest.
@@ -50,7 +48,6 @@ class DoubleBootstrap:
         If ``data_sample`` cannot be converted to a Numpy float array or is empty.
     """
 
-    # TODO: handle multi-dimensional data better (specify axis so user has more control)
     def __init__(
         self,
         data_sample: npt.ArrayLike,
@@ -67,11 +64,6 @@ class DoubleBootstrap:
             raise ValueError(
                 "Input data sample is empty. Cannot perform bootstrap"
             )
-
-        # # Convert a one-dimensional (row) vector of shape (n,) to (n, 1) to
-        # # unify the implementation to multivariate data
-        # if self._data_sample.ndim == 1:
-        #     self._data_sample = self._data_sample.reshape(-1, 1)
 
         self._statistic = statistic
         self._axis = axis
@@ -185,7 +177,7 @@ class DoubleBootstrap:
 
         # First level matrix of dataset indices
         b1_matrix = self._resample_indices(
-            len(self._data_sample),
+            self._data_sample.shape[self._axis],
             B1,
             rng,
         )
@@ -203,7 +195,7 @@ class DoubleBootstrap:
 
             # Second level matrix of dataset indices corresponding to instances in b1_data
             b2_matrix = self._resample_indices(
-                len(b1_data),
+                b1_data.shape[self._axis],
                 B2,
                 rng,
             )
@@ -294,7 +286,10 @@ class DoubleBootstrap:
             represents is an array of indices that correspond to instances.
         """
         resampled_datasets = rng.integers(
-            0, n_instances, size=(n_resamples, n_instances), dtype=np.intp
+            0,
+            n_instances,
+            size=(n_resamples, n_instances),
+            dtype=np.intp,
         )
 
         return resampled_datasets
