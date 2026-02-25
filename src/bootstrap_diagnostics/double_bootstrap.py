@@ -71,7 +71,7 @@ class DoubleBootstrap:
     def confidence_interval(
         self,
         confidence_level: float = 0.95,
-        side: Literal["two", "left", "right"] = "two",
+        side: Literal["two", "lower", "upper"] = "two",
         B1_resamples: int = 1000,
         B2_resamples: int = 250,
         q_est_method: str = "median_unbiased",
@@ -116,9 +116,9 @@ class DoubleBootstrap:
             raise ValueError(
                 f"Confidence_level should be (0, 1); got {confidence_level}"
             )
-        if side not in {"two", "left", "right"}:
+        if side not in {"two", "lower", "upper"}:
             raise ValueError(
-                f"Side must be 'two', 'left' or 'right'; got {side}"
+                f"Side must be 'two', 'lower' or 'upper'; got {side}"
             )
         if B1_resamples <= 0 or B2_resamples <= 0:
             raise ValueError("Number of resamples must be positive")
@@ -139,7 +139,7 @@ class DoubleBootstrap:
     def _double_percentile_ci(
         self,
         confidence_level: float,
-        side: Literal["two", "left", "right"],
+        side: Literal["two", "lower", "upper"],
         B1: int,
         B2: int,
         q_est_method: str,
