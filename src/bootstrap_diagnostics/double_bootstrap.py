@@ -11,7 +11,7 @@ class ConfidenceInterval:
     """Result of the bootstrap confidence interval procedure."""
 
     confidence_level: float
-    side: Literal["two", "left", "right"]
+    side: Literal["two", "lower", "upper"]
     lower: float
     upper: float
 
