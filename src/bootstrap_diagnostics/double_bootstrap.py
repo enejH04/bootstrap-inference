@@ -134,8 +134,6 @@ class DoubleBootstrap:
             rng,
         )
 
-    # TODO: speed this up - this is just a naive implementation currently to test
-    # performance
     def _double_percentile_ci(
         self,
         confidence_level: float,
@@ -182,16 +180,15 @@ class DoubleBootstrap:
             rng,
         )
         # Level 1 estimates
-        # TODO: this could be cleaner
-        l1_estimates: list[float] = []
-        cdf_evals: list[float] = []
+        l1_estimates = np.empty(B1, dtype=np.float64)
+        cdf_evals = np.empty(B1, dtype=np.float64)
 
-        for b1_indices in b1_matrix:
+        for i, b1_indices in enumerate(b1_matrix):
             # Use np.take to index along the specified axis to unify the implementation for multi-dimensional data
             b1_data = np.take(self._data_sample, b1_indices, axis=self._axis)
 
             # Store statistic evaluated on the bootstrapped dataset
-            l1_estimates.append(self._statistic(b1_data))
+            l1_estimates[i] = self._statistic(b1_data)
 
             # Second level matrix of dataset indices corresponding to instances in b1_data
             b2_matrix = self._resample_indices(
@@ -210,7 +207,7 @@ class DoubleBootstrap:
                 ]
             )
             eval = np.mean(l2_estimates <= estimate)
-            cdf_evals.append(eval)
+            cdf_evals[i] = eval
 
         # Quantile estimation method
         alpha = 1 - confidence_level
@@ -218,14 +215,14 @@ class DoubleBootstrap:
         # Adjust values to get more accurate coverage
         match side:
             case "two":
-                alpha_low_DB, alpha_high_db = np.quantile(
+                alpha_low_DB, alpha_high_DB = np.quantile(
                     cdf_evals,
                     [alpha / 2, 1 - alpha / 2],
                     method=q_est_method,
                 )
                 lower, upper = np.quantile(
                     l1_estimates,
-                    [alpha_low_DB, alpha_high_db],
+                    [alpha_low_DB, alpha_high_DB],
                     method=q_est_method,
                 )
             case "upper":
