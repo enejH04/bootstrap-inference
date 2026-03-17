@@ -12,11 +12,14 @@ class ConfidenceInterval:
 
     confidence_level: float
     side: Literal["two", "lower", "upper"]
-    lower: float
-    upper: float
+
+    # Allow both scalar and array confidence intervals
+    # (e.g. regression coefficients of multiple linear regression)
+    lower: npt.NDArray[np.float64] | float
+    upper: npt.NDArray[np.float64] | float
 
     def __str__(self) -> str:
-        return f"CI = ({self.lower}, {self.upper})"
+        return f"lower = {self.lower}, upper = {self.upper}, confidence level = {self.confidence_level}, side = {self.side}"
 
     # TODO: diagnostic results could potentially be included here?
 
@@ -35,9 +38,9 @@ class DoubleBootstrap:
         A dataset that can be converted to a NumPy array of floats.
         For multivariate data, the statistical functional will be computed along the specified ``axis``.
 
-    statistic : Callable[[npt.ArrayLike], float]
+    statistic : Callable[[npt.ArrayLike], npt.NDArray[np.float64]]
         The function used to calculate the statistic of interest.
-        Must follow the signature ``f(data) -> float``.
+        Must follow the signature ``f(data) -> npt.NDArray[np.float64]``.
 
     axis : int, optional
         The axis along which to compute the statistic. Defaults to 0.
@@ -51,10 +54,12 @@ class DoubleBootstrap:
     def __init__(
         self,
         data_sample: npt.ArrayLike,
-        statistic: Callable[[npt.ArrayLike], float],
+        statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
         axis: int = 0,
     ) -> None:
         try:
+            # Try to convert the input data sample to a Numpy array of floats
+            # TODO: add a wrapper for pandas data frames
             self._data_sample = np.asarray(data_sample, dtype=np.float64)
         except (ValueError, TypeError):
             raise ValueError(
@@ -179,9 +184,16 @@ class DoubleBootstrap:
             B1,
             rng,
         )
+
         # Level 1 estimates
-        l1_estimates = np.empty(B1, dtype=np.float64)
-        cdf_evals = np.empty(B1, dtype=np.float64)
+        # Since we are working with potentially multi-dimensional statistics,
+        # we need to store the estimates in an array of the same shape as the
+        # statistic output, but with an additional dimension for the
+        # number of resamples.
+        # For example, if the statistic is a vector of length k, the shape of l1_estimates will be (B1, k).
+        # (basically stack them on top of each other)
+        l1_estimates = np.empty((B1, *estimate.shape), dtype=np.float64)
+        cdf_evals = np.empty((B1, *estimate.shape), dtype=np.float64)
 
         for i, b1_indices in enumerate(b1_matrix):
             # Use np.take to index along the specified axis to unify the implementation for multi-dimensional data
@@ -206,7 +218,12 @@ class DoubleBootstrap:
                     for b2_indices in b2_matrix
                 ]
             )
-            eval = np.mean(l2_estimates <= estimate)
+
+            # How many level 2 estimates are less than or equal to the level 1 estimate?
+            # CDF evaluation G^*(\hat{\theta})
+            # Compute the mean along the axis that correspond to the same component
+            # of the statistic (e.g. if the statistic is a vector, compute the mean for each component separately)
+            eval = np.mean(l2_estimates <= estimate, axis=0)
             cdf_evals[i] = eval
 
         # Quantile estimation method
@@ -215,40 +232,40 @@ class DoubleBootstrap:
         # Adjust values to get more accurate coverage
         match side:
             case "two":
-                alpha_low_DB, alpha_high_DB = np.quantile(
+                alpha_lower_DB, alpha_upper_DB = np.quantile(
                     cdf_evals,
                     [alpha / 2, 1 - alpha / 2],
+                    axis=0,
                     method=q_est_method,
                 )
-                lower, upper = np.quantile(
-                    l1_estimates,
-                    [alpha_low_DB, alpha_high_DB],
-                    method=q_est_method,
+                lower = self._quantile_per_component(
+                    l1_estimates, alpha_lower_DB, q_est_method
+                )
+                upper = self._quantile_per_component(
+                    l1_estimates, alpha_upper_DB, q_est_method
                 )
             case "upper":
                 alpha_DB = np.quantile(
                     cdf_evals,
                     1 - alpha,
+                    axis=0,
                     method=q_est_method,
                 )
-                lower, upper = (
-                    -np.inf,
-                    np.quantile(
-                        l1_estimates,
-                        alpha_DB,
-                        method=q_est_method,
-                    ),
+                lower = -np.inf * np.ones_like(estimate)
+                upper = self._quantile_per_component(
+                    l1_estimates, alpha_DB, q_est_method
                 )
             case "lower":
                 alpha_DB = np.quantile(
                     cdf_evals,
                     alpha,
+                    axis=0,
                     method=q_est_method,
                 )
-                lower, upper = (
-                    np.quantile(l1_estimates, alpha_DB, method=q_est_method),
-                    np.inf,
+                lower = self._quantile_per_component(
+                    l1_estimates, alpha_DB, q_est_method
                 )
+                upper = np.inf * np.ones_like(estimate)
 
         return ConfidenceInterval(
             confidence_level,
@@ -256,6 +273,33 @@ class DoubleBootstrap:
             lower,
             upper,
         )
+
+    def _quantile_per_component(
+        self,
+        data: npt.NDArray[np.float64],
+        quantiles: npt.NDArray[np.float64],
+        q_est_method: str,
+    ):
+        """
+        data: npt.NDArray[np.float64]
+            Data we want to compute per component quantiles for.
+        quantiles: npt.NDArray[np.float64]
+            Per component quantiles. Need to have the same shape as data[i].
+        q_est_method: str
+            Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
+        """
+        # Create a (B1, n_components) vector
+        flat = data.reshape(data.shape[0], -1)
+        flat_a = quantiles.ravel()
+
+        results = np.array(
+            [
+                np.quantile(flat[:, i], flat_a[i], method=q_est_method)
+                for i in range(len(flat_a))
+            ]
+        ).reshape(quantiles.shape)
+
+        return results
 
     def _resample_indices(
         self,
