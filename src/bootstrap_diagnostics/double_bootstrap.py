@@ -31,6 +31,8 @@ class DoubleBootstrap:
     Implements nonparametric double percentile bootstrap procedure for
     confidence interval construction.
 
+    Note that the CIs for non-scalar statistics are component-wise and do not
+    represent a joint confidence region.
 
     Parameters
     ----------
