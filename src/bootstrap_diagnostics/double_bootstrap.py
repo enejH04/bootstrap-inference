@@ -206,7 +206,7 @@ class DoubleBootstrap:
         rng_outer = np.random.default_rng(ss_array[0])
 
         # First level matrix of dataset indices
-        b1_matrix = self._resample_indices(
+        b1_matrix = DoubleBootstrap._resample_indices(
             self._data_sample.shape[self._axis],
             B1,
             rng_outer,
@@ -219,7 +219,7 @@ class DoubleBootstrap:
 
         # Delegate the tasks
         results = Parallel(n_jobs=n_jobs)(
-            delayed(self._process_b1)(
+            delayed(DoubleBootstrap._process_b1)(
                 estimate,
                 self._data_sample,
                 b1_matrix[i],
