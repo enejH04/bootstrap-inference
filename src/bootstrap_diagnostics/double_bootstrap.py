@@ -52,7 +52,7 @@ class DoubleBootstrap:
     Raises
     ------
     ValueError
-        If ``data_sample`` cannot be converted to a Numpy float array or is empty.
+        If ``data_sample`` cannot be converted to a Numpy float array, is empty or ``statistic`` is not callable.
     """
 
     def __init__(
@@ -69,10 +69,12 @@ class DoubleBootstrap:
             raise ValueError(
                 "Cannot convert given array of data points to a Numpy float array"
             )
-        if len(self._data_sample) == 0:
+        if self._data_sample.size == 0:
             raise ValueError(
                 "Input data sample is empty. Cannot perform bootstrap"
             )
+        if not callable(statistic):
+            raise ValueError("Statistic must be callable")
 
         self._statistic = statistic
         self._axis = axis
@@ -219,7 +221,8 @@ class DoubleBootstrap:
         results = Parallel(n_jobs=n_jobs)(
             delayed(self._process_b1)(
                 estimate,
-                np.take(self._data_sample, b1_matrix[i], axis=self._axis),
+                self._data_sample,
+                b1_matrix[i],
                 self._axis,
                 self._statistic,
                 B2,
@@ -291,7 +294,8 @@ class DoubleBootstrap:
     @staticmethod
     def _process_b1(
         estimate: npt.NDArray[np.float64] | float,
-        b1_data: npt.NDArray[np.float64],
+        data_sample: npt.NDArray[np.float64],
+        b1_indices: npt.NDArray[np.intp],
         axis: int,
         statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
         B2: int,
@@ -305,9 +309,11 @@ class DoubleBootstrap:
         ----------
         estimate : npt.NDArray[np.float64] | float
             The estimate of the statistic computed from the original sample.
-        b1_data: npt.NDArray[np.float64]
-            The resample corresponding to the current first level bootstrap
-            iteration.
+        data_sample: npt.NDArray[np.float64]
+            The data sample used for sampling the first level bootstrap dataset.
+        b1_indeces: npt.NDArray[np.float64]
+            The instance indeces that correspond to the first level bootstrap
+            resample.
         axis : int
             The axis along which to sample new datasets.
         statistic : Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float]
@@ -330,6 +336,8 @@ class DoubleBootstrap:
         local_rng = np.random.default_rng(ss)
 
         # Compute the level 1 bootstrap estimate
+        b1_data = np.take(data_sample, b1_indices, axis=axis)
+
         l1_estimate = statistic(b1_data)
 
         # Second level matrix of dataset indices corresponding to instances in b1_data
