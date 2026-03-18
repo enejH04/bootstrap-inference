@@ -21,7 +21,7 @@ class ConfidenceInterval:
     upper: npt.NDArray[np.float64] | float
 
     def __str__(self) -> str:
-        return f"lower = {self.lower}, upper = {self.upper}, confidence level = {self.confidence_level}, side = {self.side}"
+        return f"lower = {self.lower}\nupper = {self.upper}\nconfidence level = {self.confidence_level}, side = {self.side}"
 
     # TODO: diagnostic results could potentially be included here?
 
@@ -248,7 +248,7 @@ class DoubleBootstrap:
                     axis=0,
                     method=q_est_method,
                 )
-                lower = -np.inf * np.ones_like(estimate)
+                lower = np.full_like(estimate, -np.inf)
                 upper = self._quantile_per_component(
                     l1_estimates, alpha_DB, q_est_method
                 )
@@ -262,7 +262,7 @@ class DoubleBootstrap:
                 lower = self._quantile_per_component(
                     l1_estimates, alpha_DB, q_est_method
                 )
-                upper = np.inf * np.ones_like(estimate)
+                upper = np.full_like(estimate, np.inf)
 
         return ConfidenceInterval(
             confidence_level,
@@ -298,7 +298,7 @@ class DoubleBootstrap:
         Returns
         -------
         tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]
-            The level 1 bootstrap estimate computed from the resample and G^*(\hat{\theta})
+            The level 1 bootstrap estimate computed from the resample and G^*(hat{theta})
         """
 
         # Instantiate a local RNG that is unique to this process
