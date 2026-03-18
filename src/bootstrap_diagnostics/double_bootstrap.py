@@ -311,7 +311,7 @@ class DoubleBootstrap:
             The estimate of the statistic computed from the original sample.
         data_sample: npt.NDArray[np.float64]
             The data sample used for sampling the first level bootstrap dataset.
-        b1_indeces: npt.NDArray[np.float64]
+        b1_indices: npt.NDArray[np.float64]
             The instance indeces that correspond to the first level bootstrap
             resample.
         axis : int
