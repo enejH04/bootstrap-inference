@@ -7,6 +7,8 @@ import numpy.typing as npt
 
 from joblib import Parallel, delayed
 
+from double_bootstrap import Resampler
+
 
 @dataclass(frozen=True)
 class ConfidenceInterval:
@@ -28,9 +30,9 @@ class ConfidenceInterval:
 
 class DoubleBootstrap:
     """
-    Nonparametric bootstrap class for scalar statistics.
+    Double bootstrap procedure.
 
-    Implements nonparametric double percentile bootstrap procedure for
+    Implements double percentile bootstrap procedure for
     confidence interval construction.
 
     Note that the CIs for non-scalar statistics are component-wise and do not
@@ -38,46 +40,31 @@ class DoubleBootstrap:
 
     Parameters
     ----------
-    data_sample : npt.ArrayLike
-        A dataset that can be converted to a NumPy array of floats.
-        For multivariate data, the statistical functional will be computed along the specified ``axis``.
 
     statistic : Callable[[npt.ArrayLike], npt.NDArray[np.float64]]
         The function used to calculate the statistic of interest.
         Must follow the signature ``f(data) -> npt.NDArray[np.float64]``.
 
-    axis : int, optional
-        The axis along which to compute the statistic. Defaults to 0.
+    resampler : Resampler
+        The ``Resampler`` that implements the desired resampling procedure.
 
     Raises
     ------
     ValueError
-        If ``data_sample`` cannot be converted to a Numpy float array, is empty or ``statistic`` is not callable.
+        If ``statistic`` is not callable.
     """
 
     def __init__(
         self,
-        data_sample: npt.ArrayLike,
         statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
-        axis: int = 0,
+        resampler: Resampler,
     ) -> None:
-        try:
-            # Try to convert the input data sample to a Numpy array of floats
-            # TODO: add a wrapper for pandas data frames
-            self._data_sample = np.asarray(data_sample, dtype=np.float64)
-        except (ValueError, TypeError):
-            raise ValueError(
-                "Cannot convert given array of data points to a Numpy float array"
-            )
-        if self._data_sample.size == 0:
-            raise ValueError(
-                "Input data sample is empty. Cannot perform bootstrap"
-            )
         if not callable(statistic):
             raise ValueError("Statistic must be callable")
 
         self._statistic = statistic
-        self._axis = axis
+        self._resampler = resampler
+        self._data_sample = resampler.data_sample
 
     def confidence_interval(
         self,
