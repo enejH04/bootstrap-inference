@@ -290,7 +290,6 @@ class DoubleBootstrap:
             upper,
         )
 
-    # Make this a static method and don't pass in self to avoid copying data
     @staticmethod
     def _process_b1(
         estimate: npt.NDArray[np.float64] | float,
