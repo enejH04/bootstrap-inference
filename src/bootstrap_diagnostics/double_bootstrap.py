@@ -137,7 +137,9 @@ class DoubleBootstrap:
         if B1_resamples <= 0 or B2_resamples <= 0:
             raise ValueError("Number of resamples must be positive")
 
-        rng = np.random.default_rng(seed)
+        # Use a seed sequence to instantiate high quality very
+        # probably non-overlapping bit-generators
+        ss = np.random.SeedSequence(seed)
 
         return self._double_percentile_ci(
             confidence_level,
@@ -146,7 +148,7 @@ class DoubleBootstrap:
             B2_resamples,
             q_est_method,
             n_jobs,
-            rng,
+            ss,
         )
 
     def _double_percentile_ci(
@@ -157,7 +159,7 @@ class DoubleBootstrap:
         B2: int,
         q_est_method: str,
         n_jobs: int,
-        rng: Generator,
+        ss: np.random.SeedSequence,
     ) -> ConfidenceInterval:
         """
         Internal method that computes the CI using the double percentile
@@ -181,8 +183,9 @@ class DoubleBootstrap:
             Number of concurrent jobs used for the bootstrap procedure.
             Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
             Defaults to 1.
-        rng : Generator
-            Numpy random number generator.
+        ss: np.random.SeedSequence
+            A seed sequence object which allows for a reproducible way to set the
+            initial state for independent and very probably non-overlapping BitGenerators.
 
         Returns
         -------
@@ -193,22 +196,28 @@ class DoubleBootstrap:
         # Evaluate the statistic on the original sample (needed for calibration)
         estimate = self._statistic(self._data_sample)
 
+        # Spawn a sequence of seed sequences used for seeding independent bit-generators
+        # We need B1 + 1 of them since we also have to have an rng for the top level
+        ss_array = ss.spawn(B1 + 1)
+
+        # Outer bootstrap RNG to resample datasets from the original sample
+        rng_outer = np.random.default_rng(ss_array[0])
+
         # First level matrix of dataset indices
         b1_matrix = self._resample_indices(
             self._data_sample.shape[self._axis],
             B1,
-            rng,
+            rng_outer,
         )
 
-        # Derive the seeds for all B1 jobs using the provided RNG
-        # TODO: look into whether this RNG is ok and reproducible
-        # I believe this should be fine since we deterministically derive
-        # the seed for each child from the original seed
-        seeds = rng.integers(0, 2**32, size=B1)
+        # Derive the seeds for all B1 jobs using the seed sequences computed
+        # from the original sequence
+        # Level 2 seed sequences
+        ss_l2 = ss_array[1:]
 
         # Delegate the tasks
         results = Parallel(n_jobs=n_jobs)(
-            delayed(self._process_b1)(estimate, b1_matrix[i], B2, seeds[i])
+            delayed(self._process_b1)(estimate, b1_matrix[i], B2, ss_l2[i])
             for i in range(B1)
         )
 
@@ -271,12 +280,13 @@ class DoubleBootstrap:
             upper,
         )
 
+    # TODO: this might not be the best since joblib also has to pickle self
     def _process_b1(
         self,
-        estimate: npt.NDArray[np.float64],
+        estimate: npt.NDArray[np.float64] | float,
         b1_indices: npt.NDArray[np.intp],
         B2: int,
-        seed: int,
+        ss: np.random.SeedSequence,
     ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         """
         Internal method that computes the double bootstrap procedure for a single
@@ -284,7 +294,7 @@ class DoubleBootstrap:
 
         Parameters
         ----------
-        estimate : npt.NDArray[np.float64]
+        estimate : npt.NDArray[np.float64] | float
             The estimate of the statistic computed from the original sample.
         b1_indices :
             First level vector of instance indices which represent our bootstrap
@@ -292,8 +302,9 @@ class DoubleBootstrap:
         B2 : int
             Number of bootstrap resamples in the second level for calibration
             of the percentile method.
-        seed : int
-            Random seed used for resampling from the provided dataset.
+        ss: np.random.SeedSequence
+            A seed sequence object which allows for a reproducible way to set the
+            initial state for independent and very probably non-overlapping BitGenerators.
 
         Returns
         -------
@@ -302,7 +313,7 @@ class DoubleBootstrap:
         """
 
         # Instantiate a local RNG that is unique to this process
-        local_rng = np.random.default_rng(seed)
+        local_rng = np.random.default_rng(ss)
 
         # Use np.take to index along the specified axis to unify the implementation for multi-dimensional data
         b1_data = np.take(self._data_sample, b1_indices, axis=self._axis)
