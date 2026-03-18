@@ -217,7 +217,14 @@ class DoubleBootstrap:
 
         # Delegate the tasks
         results = Parallel(n_jobs=n_jobs)(
-            delayed(self._process_b1)(estimate, b1_matrix[i], B2, ss_l2[i])
+            delayed(self._process_b1)(
+                estimate,
+                np.take(self._data_sample, b1_matrix[i], axis=self._axis),
+                self._axis,
+                self._statistic,
+                B2,
+                ss_l2[i],
+            )
             for i in range(B1)
         )
 
@@ -280,11 +287,13 @@ class DoubleBootstrap:
             upper,
         )
 
-    # TODO: this might not be the best since joblib also has to pickle self
+    # Make this a static method and don't pass in self to avoid copying data
+    @staticmethod
     def _process_b1(
-        self,
         estimate: npt.NDArray[np.float64] | float,
-        b1_indices: npt.NDArray[np.intp],
+        b1_data: npt.NDArray[np.float64],
+        axis: int,
+        statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
         B2: int,
         ss: np.random.SeedSequence,
     ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
@@ -296,9 +305,14 @@ class DoubleBootstrap:
         ----------
         estimate : npt.NDArray[np.float64] | float
             The estimate of the statistic computed from the original sample.
-        b1_indices :
-            First level vector of instance indices which represent our bootstrap
-            resample.
+        b1_data: npt.NDArray[np.float64]
+            The resample corresponding to the current first level bootstrap
+            iteration.
+        axis : int
+            The axis along which to sample new datasets.
+        statistic : Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float]
+            The function used to calculate the statistic of interest.
+            Must follow the signature ``f(data) -> npt.NDArray[np.float64] | float``.
         B2 : int
             Number of bootstrap resamples in the second level for calibration
             of the percentile method.
@@ -315,15 +329,12 @@ class DoubleBootstrap:
         # Instantiate a local RNG that is unique to this process
         local_rng = np.random.default_rng(ss)
 
-        # Use np.take to index along the specified axis to unify the implementation for multi-dimensional data
-        b1_data = np.take(self._data_sample, b1_indices, axis=self._axis)
-
         # Compute the level 1 bootstrap estimate
-        l1_estimate = self._statistic(b1_data)
+        l1_estimate = statistic(b1_data)
 
         # Second level matrix of dataset indices corresponding to instances in b1_data
-        b2_matrix = self._resample_indices(
-            b1_data.shape[self._axis],
+        b2_matrix = DoubleBootstrap._resample_indices(
+            b1_data.shape[axis],
             B2,
             local_rng,
         )
@@ -331,7 +342,7 @@ class DoubleBootstrap:
         # Compute the level 2 estimates
         l2_estimates = np.array(
             [
-                self._statistic(np.take(b1_data, b2_indices, axis=self._axis))
+                statistic(np.take(b1_data, b2_indices, axis=axis))
                 for b2_indices in b2_matrix
             ]
         )
@@ -344,8 +355,8 @@ class DoubleBootstrap:
 
         return l1_estimate, cdf_eval
 
+    @staticmethod
     def _quantile_per_component(
-        self,
         data: npt.NDArray[np.float64],
         quantiles: npt.NDArray[np.float64],
         q_est_method: str,
@@ -371,8 +382,8 @@ class DoubleBootstrap:
 
         return results
 
+    @staticmethod
     def _resample_indices(
-        self,
         n_instances: int,
         n_resamples: int,
         rng: Generator,
