@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "joblib>=1.5.3",
     "numpy>=2.4.2",
 ]
 

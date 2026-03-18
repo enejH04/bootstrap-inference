@@ -5,6 +5,8 @@ import numpy as np
 from numpy.random import Generator
 import numpy.typing as npt
 
+from joblib import Parallel, delayed
+
 
 @dataclass(frozen=True)
 class ConfidenceInterval:
@@ -82,6 +84,7 @@ class DoubleBootstrap:
         B1_resamples: int = 1000,
         B2_resamples: int = 250,
         q_est_method: str = "median_unbiased",
+        n_jobs: int = 1,
         seed: Optional[int] = None,
     ) -> ConfidenceInterval:
         """
@@ -102,6 +105,10 @@ class DoubleBootstrap:
         q_est_method: str, optional
             Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
             Defaults to "median_unbiased".
+        n_jobs: int, optional
+            Number of concurrent jobs used for the bootstrap procedure.
+            Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
+            Defaults to 1.
         seed : int, optional
             Seed for the random number generator. Defaults to None.
 
@@ -138,6 +145,7 @@ class DoubleBootstrap:
             B1_resamples,
             B2_resamples,
             q_est_method,
+            n_jobs,
             rng,
         )
 
@@ -148,6 +156,7 @@ class DoubleBootstrap:
         B1: int,
         B2: int,
         q_est_method: str,
+        n_jobs: int,
         rng: Generator,
     ) -> ConfidenceInterval:
         """
@@ -168,6 +177,10 @@ class DoubleBootstrap:
             of the percentile method.
         q_est_method: str
             Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
+        n_jobs: int, optional
+            Number of concurrent jobs used for the bootstrap procedure.
+            Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
+            Defaults to 1.
         rng : Generator
             Numpy random number generator.
 
@@ -187,46 +200,28 @@ class DoubleBootstrap:
             rng,
         )
 
-        # Level 1 estimates
+        # Derive the seeds for all B1 jobs using the provided RNG
+        # TODO: look into whether this RNG is ok and reproducible
+        # I believe this should be fine since we deterministically derive
+        # the seed for each child from the original seed
+        seeds = rng.integers(0, 2**32, size=B1)
+
+        # Delegate the tasks
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(self._process_b1)(estimate, b1_matrix[i], B2, seeds[i])
+            for i in range(B1)
+        )
+
+        # zip((1, 2), (3, 4)) = (1, 3), (2, 4)
         # Since we are working with potentially multi-dimensional statistics,
         # we need to store the estimates in an array of the same shape as the
         # statistic output, but with an additional dimension for the
         # number of resamples.
         # For example, if the statistic is a vector of length k, the shape of l1_estimates will be (B1, k).
         # (basically stack them on top of each other)
-        l1_estimates = np.empty((B1, *estimate.shape), dtype=np.float64)
-        cdf_evals = np.empty((B1, *estimate.shape), dtype=np.float64)
-
-        for i, b1_indices in enumerate(b1_matrix):
-            # Use np.take to index along the specified axis to unify the implementation for multi-dimensional data
-            b1_data = np.take(self._data_sample, b1_indices, axis=self._axis)
-
-            # Store statistic evaluated on the bootstrapped dataset
-            l1_estimates[i] = self._statistic(b1_data)
-
-            # Second level matrix of dataset indices corresponding to instances in b1_data
-            b2_matrix = self._resample_indices(
-                b1_data.shape[self._axis],
-                B2,
-                rng,
-            )
-
-            # Compute the level 2 estimates
-            l2_estimates = np.array(
-                [
-                    self._statistic(
-                        np.take(b1_data, b2_indices, axis=self._axis)
-                    )
-                    for b2_indices in b2_matrix
-                ]
-            )
-
-            # How many level 2 estimates are less than or equal to the level 1 estimate?
-            # CDF evaluation G^*(\hat{\theta})
-            # Compute the mean along the axis that correspond to the same component
-            # of the statistic (e.g. if the statistic is a vector, compute the mean for each component separately)
-            eval = np.mean(l2_estimates <= estimate, axis=0)
-            cdf_evals[i] = eval
+        l1_estimates, cdf_evals = zip(*results)
+        l1_estimates = np.array(l1_estimates)
+        cdf_evals = np.array(cdf_evals)
 
         # Quantile estimation method
         alpha = 1 - confidence_level
@@ -275,6 +270,68 @@ class DoubleBootstrap:
             lower,
             upper,
         )
+
+    def _process_b1(
+        self,
+        estimate: npt.NDArray[np.float64],
+        b1_indices: npt.NDArray[np.intp],
+        B2: int,
+        seed: int,
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+        """
+        Internal method that computes the double bootstrap procedure for a single
+        first level resample.
+
+        Parameters
+        ----------
+        estimate : npt.NDArray[np.float64]
+            The estimate of the statistic computed from the original sample.
+        b1_indices :
+            First level vector of instance indices which represent our bootstrap
+            resample.
+        B2 : int
+            Number of bootstrap resamples in the second level for calibration
+            of the percentile method.
+        seed : int
+            Random seed used for resampling from the provided dataset.
+
+        Returns
+        -------
+        tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]
+            The level 1 bootstrap estimate computed from the resample and G^*(\hat{\theta})
+        """
+
+        # Instantiate a local RNG that is unique to this process
+        local_rng = np.random.default_rng(seed)
+
+        # Use np.take to index along the specified axis to unify the implementation for multi-dimensional data
+        b1_data = np.take(self._data_sample, b1_indices, axis=self._axis)
+
+        # Compute the level 1 bootstrap estimate
+        l1_estimate = self._statistic(b1_data)
+
+        # Second level matrix of dataset indices corresponding to instances in b1_data
+        b2_matrix = self._resample_indices(
+            b1_data.shape[self._axis],
+            B2,
+            local_rng,
+        )
+
+        # Compute the level 2 estimates
+        l2_estimates = np.array(
+            [
+                self._statistic(np.take(b1_data, b2_indices, axis=self._axis))
+                for b2_indices in b2_matrix
+            ]
+        )
+
+        # How many level 2 estimates are less than or equal to the original estimate?
+        # CDF evaluation G^*(\hat{\theta})
+        # Compute the mean along the axis that correspond to the same component
+        # of the statistic (e.g. if the statistic is a vector, compute the mean for each component separately)
+        cdf_eval = np.mean(l2_estimates <= estimate, axis=0)
+
+        return l1_estimate, cdf_eval
 
     def _quantile_per_component(
         self,
