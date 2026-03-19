@@ -2,12 +2,11 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Literal
 
 import numpy as np
-from numpy.random import Generator
 import numpy.typing as npt
 
 from joblib import Parallel, delayed
 
-from double_bootstrap import Resampler
+from .resamplers import Resampler
 
 
 @dataclass(frozen=True)
@@ -51,7 +50,8 @@ class DoubleBootstrap:
     Raises
     ------
     ValueError
-        If ``statistic`` is not callable.
+        If ``statistic`` is not callable or if ``resampler`` is not a subclass
+        of Resampler.
     """
 
     def __init__(
@@ -59,11 +59,17 @@ class DoubleBootstrap:
         statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
         resampler: Resampler,
     ) -> None:
+        if not isinstance(resampler, Resampler):
+            raise TypeError(
+                f"resampler must be a subclass of Resampler, got {type(resampler)}"
+            )
         if not callable(statistic):
-            raise ValueError("Statistic must be callable")
+            raise TypeError("Statistic must be callable")
 
         self._statistic = statistic
         self._resampler = resampler
+
+        # Store the original data sample
         self._data_sample = resampler.data_sample
 
     def confidence_interval(
@@ -190,14 +196,8 @@ class DoubleBootstrap:
         ss_array = ss.spawn(B1 + 1)
 
         # Outer bootstrap RNG to resample datasets from the original sample
+        # that belongs to self.resampler
         rng_outer = np.random.default_rng(ss_array[0])
-
-        # First level matrix of dataset indices
-        b1_matrix = DoubleBootstrap._resample_indices(
-            self._data_sample.shape[self._axis],
-            B1,
-            rng_outer,
-        )
 
         # Derive the seeds for all B1 jobs using the seed sequences computed
         # from the original sequence
@@ -208,9 +208,8 @@ class DoubleBootstrap:
         results = Parallel(n_jobs=n_jobs)(
             delayed(DoubleBootstrap._process_b1)(
                 estimate,
-                self._data_sample,
-                b1_matrix[i],
-                self._axis,
+                self._resampler.draw_sample(rng_outer),
+                self._resampler,
                 self._statistic,
                 B2,
                 ss_l2[i],
@@ -281,8 +280,7 @@ class DoubleBootstrap:
     def _process_b1(
         estimate: npt.NDArray[np.float64] | float,
         data_sample: npt.NDArray[np.float64],
-        b1_indices: npt.NDArray[np.intp],
-        axis: int,
+        resampler: Resampler,
         statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
         B2: int,
         ss: np.random.SeedSequence,
@@ -296,12 +294,9 @@ class DoubleBootstrap:
         estimate : npt.NDArray[np.float64] | float
             The estimate of the statistic computed from the original sample.
         data_sample: npt.NDArray[np.float64]
-            The data sample used for sampling the first level bootstrap dataset.
-        b1_indices: npt.NDArray[np.float64]
-            The instance indeces that correspond to the first level bootstrap
-            resample.
-        axis : int
-            The axis along which to sample new datasets.
+            The data sample used for sampling the second level bootstrap datasets.
+        resampler: Resampler
+            The resampler used to construct the second level bootstrap resampler.
         statistic : Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float]
             The function used to calculate the statistic of interest.
             Must follow the signature ``f(data) -> npt.NDArray[np.float64] | float``.
@@ -321,24 +316,16 @@ class DoubleBootstrap:
         # Instantiate a local RNG that is unique to this process
         local_rng = np.random.default_rng(ss)
 
-        # Compute the level 1 bootstrap estimate
-        b1_data = np.take(data_sample, b1_indices, axis=axis)
+        l1_estimate = statistic(data_sample)
 
-        l1_estimate = statistic(b1_data)
+        l2_resampler = resampler.with_data(data_sample)
 
-        # Second level matrix of dataset indices corresponding to instances in b1_data
-        b2_matrix = DoubleBootstrap._resample_indices(
-            b1_data.shape[axis],
-            B2,
-            local_rng,
-        )
+        # l2_resampler = IIDResampler(data_sample, axis=axis)
+        # Initialize the level 2 resampler with the current level 1 resample as the new "original" dataset
 
         # Compute the level 2 estimates
         l2_estimates = np.array(
-            [
-                statistic(np.take(b1_data, b2_indices, axis=axis))
-                for b2_indices in b2_matrix
-            ]
+            [statistic(l2_resampler.draw_sample(local_rng)) for _ in range(B2)]
         )
 
         # How many level 2 estimates are less than or equal to the original estimate?
@@ -375,37 +362,3 @@ class DoubleBootstrap:
         ).reshape(quantiles.shape)
 
         return results
-
-    @staticmethod
-    def _resample_indices(
-        n_instances: int,
-        n_resamples: int,
-        rng: Generator,
-    ) -> npt.NDArray[np.intp]:
-        """
-        Resample B bootstrapped datasets (indirectly through indices).
-        The instances are sampled with replacement.
-
-        Parameters
-        ----------
-        n_instances : int
-            Number of instances in the dataset.
-        n_resamples : int
-            Number of bootstrap resampled datasets to generate.
-        rng : Generator
-            Numpy random number generator.
-
-        Returns
-        -------
-        npt.NDArray[np.intp]
-            A matrix of shape ``(n_resamples, n_instances)``, where each row
-            represents is an array of indices that correspond to instances.
-        """
-        resampled_datasets = rng.integers(
-            0,
-            n_instances,
-            size=(n_resamples, n_instances),
-            dtype=np.intp,
-        )
-
-        return resampled_datasets
