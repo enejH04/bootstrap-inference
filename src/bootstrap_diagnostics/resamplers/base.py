@@ -31,9 +31,7 @@ class Resampler(ABC):
                 "Cannot convert given array of data points to a Numpy float array"
             ) from e
         if self.data_sample.size == 0:
-            raise ValueError(
-                "Input data sample is empty. Cannot perform bootstrap"
-            )
+            raise ValueError("Input data sample is empty. Cannot perform bootstrap")
         self.axis = axis
         self.n_obs = self.data_sample.shape[axis]
 
@@ -60,6 +58,8 @@ class Resampler(ABC):
         """
         ...
 
+    # Note that this is needed to allow for different __init__ arguments
+    # in e.g. block resampling strategies
     @abstractmethod
     def with_data(self, new_data_sample: npt.ArrayLike) -> "Resampler":
         """
