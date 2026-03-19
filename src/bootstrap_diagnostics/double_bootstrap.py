@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Optional, Literal
+from typing import Callable, Literal, Any
 
 import numpy as np
 import numpy.typing as npt
@@ -17,7 +17,7 @@ class ConfidenceInterval:
     side: Literal["two", "lower", "upper"]
 
     # Allow both scalar and array confidence intervals
-    # (e.g. regression coefficients of multiple linear regression)
+    # (e.g. regression coefficients for multiple linear regression)
     lower: npt.NDArray[np.float64] | float
     upper: npt.NDArray[np.float64] | float
 
@@ -40,23 +40,23 @@ class DoubleBootstrap:
     Parameters
     ----------
 
-    statistic : Callable[[npt.ArrayLike], npt.NDArray[np.float64]]
+    statistic : Callable[[npt.ArrayLike], npt.NDArray[Any] | float]
         The function used to calculate the statistic of interest.
-        Must follow the signature ``f(data) -> npt.NDArray[np.float64]``.
+        Must follow the signature ``f(data) -> npt.NDArray[Any] | float``.
 
     resampler : Resampler
         The ``Resampler`` that implements the desired resampling procedure.
 
     Raises
     ------
-    ValueError
+    TypeError
         If ``statistic`` is not callable or if ``resampler`` is not a subclass
         of Resampler.
     """
 
     def __init__(
         self,
-        statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
+        statistic: Callable[[npt.ArrayLike], npt.NDArray[Any] | float],
         resampler: Resampler,
     ) -> None:
         if not isinstance(resampler, Resampler):
@@ -69,7 +69,7 @@ class DoubleBootstrap:
         self._statistic = statistic
         self._resampler = resampler
 
-        # Store the original data sample
+        # Store the original data sample from the resampler
         self._data_sample = resampler.data_sample
 
     def confidence_interval(
@@ -80,7 +80,7 @@ class DoubleBootstrap:
         B2_resamples: int = 250,
         q_est_method: str = "median_unbiased",
         n_jobs: int = 1,
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ) -> ConfidenceInterval:
         """
         Compute a confidence interval of the sample data.
@@ -126,13 +126,11 @@ class DoubleBootstrap:
                 f"Confidence_level should be (0, 1); got {confidence_level}"
             )
         if side not in {"two", "lower", "upper"}:
-            raise ValueError(
-                f"Side must be 'two', 'lower' or 'upper'; got {side}"
-            )
+            raise ValueError(f"Side must be 'two', 'lower' or 'upper'; got {side}")
         if B1_resamples <= 0 or B2_resamples <= 0:
-            raise ValueError("Number of resamples must be positive")
+            raise ValueError("Number of resamples must be non-negative")
 
-        # Use a seed sequence to instantiate high quality very
+        # Use a seed sequence to instantiate high quality
         # probably non-overlapping bit-generators
         ss = np.random.SeedSequence(seed)
 
@@ -201,7 +199,6 @@ class DoubleBootstrap:
 
         # Derive the seeds for all B1 jobs using the seed sequences computed
         # from the original sequence
-        # Level 2 seed sequences
         ss_l2 = ss_array[1:]
 
         # Delegate the tasks
@@ -222,8 +219,8 @@ class DoubleBootstrap:
         # we need to store the estimates in an array of the same shape as the
         # statistic output, but with an additional dimension for the
         # number of resamples.
-        # For example, if the statistic is a vector of length k, the shape of l1_estimates will be (B1, k).
-        # (basically stack them on top of each other)
+        # For example, if the statistic is a vector of length k, the shape of
+        # l1_estimates will be (B1, k) (basically stack them on top of each other)
         l1_estimates, cdf_evals = zip(*results)
         l1_estimates = np.array(l1_estimates)
         cdf_evals = np.array(cdf_evals)
@@ -279,9 +276,9 @@ class DoubleBootstrap:
     @staticmethod
     def _process_b1(
         estimate: npt.NDArray[np.float64] | float,
-        data_sample: npt.NDArray[np.float64],
+        data_sample: npt.ArrayLike,
         resampler: Resampler,
-        statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
+        statistic: Callable[[npt.ArrayLike], npt.NDArray[Any] | float],
         B2: int,
         ss: np.random.SeedSequence,
     ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
@@ -293,13 +290,13 @@ class DoubleBootstrap:
         ----------
         estimate : npt.NDArray[np.float64] | float
             The estimate of the statistic computed from the original sample.
-        data_sample: npt.NDArray[np.float64]
+        data_sample: npt.ArrayLike
             The data sample used for sampling the second level bootstrap datasets.
         resampler: Resampler
             The resampler used to construct the second level bootstrap resampler.
-        statistic : Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float]
+        statistic : Callable[[npt.ArrayLike], npt.NDArray[Any] | float]
             The function used to calculate the statistic of interest.
-            Must follow the signature ``f(data) -> npt.NDArray[np.float64] | float``.
+            Must follow the signature ``f(data) -> npt.NDArray[Any] | float``.
         B2 : int
             Number of bootstrap resamples in the second level for calibration
             of the percentile method.
@@ -318,10 +315,8 @@ class DoubleBootstrap:
 
         l1_estimate = statistic(data_sample)
 
-        l2_resampler = resampler.with_data(data_sample)
-
-        # l2_resampler = IIDResampler(data_sample, axis=axis)
         # Initialize the level 2 resampler with the current level 1 resample as the new "original" dataset
+        l2_resampler = resampler.with_data(data_sample)
 
         # Compute the level 2 estimates
         l2_estimates = np.array(
@@ -343,12 +338,24 @@ class DoubleBootstrap:
         q_est_method: str,
     ):
         """
+        Internal method that computes the per component quantiles of the given data.
+
+        This is nedded for non-scalar statistics, where we want to compute
+        the quantiles for each component separately.
+
+        Parameters
+        ----------
         data: npt.NDArray[np.float64]
             Data we want to compute per component quantiles for.
         quantiles: npt.NDArray[np.float64]
             Per component quantiles. Need to have the same shape as data[i].
         q_est_method: str
             Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
+
+        Returns
+        -------
+        npt.NDArray[np.float64]
+            Per component quantiles of the data.
         """
         # Create a (B1, n_components) vector
         flat = data.reshape(data.shape[0], -1)

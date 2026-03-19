@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -11,10 +12,15 @@ class Resampler(ABC):
     Parameters
     ----------
     data_sample : npt.ArrayLike
-        A dataset that can be converted to a NumPy array of floats.
+        A dataset that can be converted to a NumPy array.
     axis : int, optional
         The axis along which new resamples are drawn from the dataset.
         Defaults to 0.
+
+    Raises
+    ------
+    ValueError
+        If the input data sample cannot be converted to a NumPy array or if it is empty.
     """
 
     def __init__(
@@ -23,12 +29,12 @@ class Resampler(ABC):
         axis: int = 0,
     ) -> None:
         try:
-            # Try to convert the input data sample to a Numpy array of floats
-            # TODO: add a wrapper for pandas data frames
-            self.data_sample = np.asarray(data_sample, dtype=np.float64)
+            # TODO: add a wrapper for pandas data frames - this actually already
+            # works as long as the data frame can be converted to a Numpy array of floats
+            self.data_sample = np.asarray(data_sample)
         except (ValueError, TypeError) as e:
             raise ValueError(
-                "Cannot convert given array of data points to a Numpy float array"
+                "Cannot convert given array of data points to a Numpy array"
             ) from e
         if self.data_sample.size == 0:
             raise ValueError("Input data sample is empty. Cannot perform bootstrap")
@@ -39,7 +45,7 @@ class Resampler(ABC):
     def draw_sample(
         self,
         rng: np.random.Generator,
-    ) -> npt.NDArray[np.float64]:
+    ) -> npt.NDArray[Any]:
         """
         Generate a single bootstrap resample of the data.
 
@@ -53,13 +59,12 @@ class Resampler(ABC):
 
         Returns
         -------
-        npt.NDArray[np.float64]
-            A new dataset of the same shape as ``self.data_sample``.
+        npt.NDArray[Any]
+            A new dataset of the same shape and type as ``self.data_sample``.
         """
         ...
 
     # Note that this is needed to allow for different __init__ arguments
-    # in e.g. block resampling strategies
     @abstractmethod
     def with_data(self, new_data_sample: npt.ArrayLike) -> "Resampler":
         """
@@ -73,7 +78,7 @@ class Resampler(ABC):
         Parameters
         ----------
         new_data_sample : npt.ArrayLike
-            A new dataset that can be converted to a NumPy array of floats.
+            A new dataset that can be converted to a NumPy array.
 
         Returns
         -------

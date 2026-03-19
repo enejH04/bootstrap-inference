@@ -1,3 +1,4 @@
+from typing import Any
 import numpy as np
 import numpy.typing as npt
 
@@ -12,7 +13,7 @@ class IIDResampler(Resampler):
     Parameters
     ----------
     data_sample : npt.ArrayLike
-        A dataset that can be converted to a NumPy array of floats.
+        A dataset that can be converted to a NumPy array.
     axis : int, optional
         The axis along which new resamples are drawn from the dataset.
         Defaults to 0.
@@ -21,7 +22,7 @@ class IIDResampler(Resampler):
     def draw_sample(
         self,
         rng: np.random.Generator,
-    ) -> npt.NDArray[np.float64]:
+    ) -> npt.NDArray[Any]:
         """
         Generate a single bootstrap resample of the data by drawing IID samples
         with replacement from the original dataset.
@@ -33,8 +34,8 @@ class IIDResampler(Resampler):
 
         Returns
         -------
-        npt.NDArray[np.float64]
-            A new dataset of the same shape as ``self.data_sample``.
+        npt.NDArray[Any]
+            A new dataset of the same shape and type as ``self.data_sample``.
         """
         n_resamples = self.data_sample.shape[self.axis]
 
@@ -56,7 +57,7 @@ class IIDResampler(Resampler):
         Parameters
         ----------
         new_data_sample : npt.ArrayLike
-            A new dataset that can be converted to a NumPy array of floats.
+            A new dataset that can be converted to a NumPy array.
 
         Returns
         -------
