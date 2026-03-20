@@ -43,7 +43,7 @@ class Resampler(ABC):
             self.data_sample = np.asarray(data_sample)
         except (ValueError, TypeError) as e:
             raise ValueError(
-                "Cannot convert given array of data points to a Numpy array"
+                "Cannot convert given array of data points to a NumPy array"
             ) from e
         if self.data_sample.size == 0:
             raise ValueError(
