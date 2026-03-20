@@ -39,8 +39,13 @@ class Resampler(ABC):
             raise ValueError(
                 "Input data sample is empty. Cannot perform bootstrap"
             )
+        # Allow numpy negative axis indexing, but check that the axis
+        # is valid for the given data sample
+        if not (-self.data_sample.ndim <= axis < self.data_sample.ndim):
+            raise ValueError(
+                f"Invalid axis {axis} for data sample with {self.data_sample.ndim} dimensions"
+            )
         self.axis = axis
-        self.n_obs = self.data_sample.shape[axis]
 
     @abstractmethod
     def draw_sample(
