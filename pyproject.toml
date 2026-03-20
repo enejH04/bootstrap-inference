@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "ipykernel>=7.2.0",
     "joblib>=1.5.3",
     "numpy>=2.4.2",
 ]
@@ -20,4 +21,18 @@ build-backend = "uv_build"
 dev = [
     "matplotlib>=3.10.8",
     "pandas>=3.0.1",
+    "ruff>=0.15.7",
 ]
+
+[tool.ruff]
+line-length = 80
+exclude = [".venv"]
+
+[tool.ruff.lint]
+select = [
+    "I",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -37,7 +36,9 @@ class Resampler(ABC):
                 "Cannot convert given array of data points to a Numpy array"
             ) from e
         if self.data_sample.size == 0:
-            raise ValueError("Input data sample is empty. Cannot perform bootstrap")
+            raise ValueError(
+                "Input data sample is empty. Cannot perform bootstrap"
+            )
         self.axis = axis
         self.n_obs = self.data_sample.shape[axis]
 
@@ -45,7 +46,7 @@ class Resampler(ABC):
     def draw_sample(
         self,
         rng: np.random.Generator,
-    ) -> npt.NDArray[Any]:
+    ) -> npt.NDArray:
         """
         Generate a single bootstrap resample of the data.
 
@@ -59,7 +60,7 @@ class Resampler(ABC):
 
         Returns
         -------
-        npt.NDArray[Any]
+        npt.NDArray
             A new dataset of the same shape and type as ``self.data_sample``.
         """
         ...
