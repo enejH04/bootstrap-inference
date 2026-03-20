@@ -49,8 +49,10 @@ class DoubleBootstrap:
     Raises
     ------
     TypeError
-        If ``statistic`` is not callable or if ``resampler`` is not a subclass
-        of ``Resampler``.
+        If any of the following conditions are met:
+
+        - If ``statistic`` is not callable.
+        - If ``resampler`` is not a subclass of ``Resampler``.
     """
 
     def __init__(

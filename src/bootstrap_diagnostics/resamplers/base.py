@@ -13,13 +13,23 @@ class Resampler(ABC):
     data_sample : npt.ArrayLike
         A dataset that can be converted to a NumPy array.
     axis : int, optional
-        The axis along which new resamples are drawn from the dataset.
+        The axis along which resampling from `data_sample` is performed (e.g. 0 for rows, 1 for columns).
         Defaults to 0.
 
     Raises
     ------
     ValueError
-        If the input data sample cannot be converted to a NumPy array or if it is empty.
+        If any of the following conditions are met:
+
+        - The input data sample cannot be converted to a NumPy array.
+        - The input data sample is empty.
+        - The axis argument is invalid for the given data sample.
+
+    Notes
+    -----
+    Subclasses must implement the `draw_sample` and `with_data` methods.
+    Resampled datasets must be compatible with the statistic being evaluated
+    on the dataset.
     """
 
     def __init__(
@@ -61,7 +71,7 @@ class Resampler(ABC):
         Parameters
         ----------
         rng : np.random.Generator
-            Numpy random number generator.
+            NumPy random number generator.
 
         Returns
         -------
