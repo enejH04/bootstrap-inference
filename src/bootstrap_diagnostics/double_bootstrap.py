@@ -12,6 +12,9 @@ from .resamplers import Resampler
 class ConfidenceInterval:
     """Result of the bootstrap confidence interval procedure."""
 
+    # The statistic of interest computed on the original sample
+    estimate: npt.ArrayLike
+
     confidence_level: float
     side: Literal["two", "lower", "upper"]
 
@@ -21,7 +24,7 @@ class ConfidenceInterval:
     upper: npt.NDArray[np.float64] | float
 
     def __str__(self) -> str:
-        return f"lower = {self.lower}\nupper = {self.upper}\nconfidence level = {self.confidence_level}, side = {self.side}"
+        return f"estimate = {self.estimate}\nlower = {self.lower}\nupper = {self.upper}\nconfidence level = {self.confidence_level}, side = {self.side}"
 
     # TODO: diagnostic results could potentially be included here?
 
@@ -73,7 +76,7 @@ class DoubleBootstrap:
         # Store the original data sample from the resampler
         self._data_sample = resampler.data_sample
 
-    def confidence_interval(
+    def double_percentile_ci(
         self,
         confidence_level: float = 0.95,
         side: Literal["two", "lower", "upper"] = "two",
@@ -84,7 +87,7 @@ class DoubleBootstrap:
         seed: int | None = None,
     ) -> ConfidenceInterval:
         """
-        Compute a confidence interval of the sample data.
+        Compute a double percentile confidence interval of the sample data.
 
         Parameters
         ----------
@@ -131,7 +134,7 @@ class DoubleBootstrap:
                 f"Side must be 'two', 'lower' or 'upper'; got {side}"
             )
         if b1_resamples <= 0 or b2_resamples <= 0:
-            raise ValueError("Number of resamples must be non-negative")
+            raise ValueError("Number of resamples must be positive")
 
         # Use a seed sequence to instantiate high quality
         # probably non-overlapping bit-generators
@@ -145,6 +148,142 @@ class DoubleBootstrap:
             q_est_method,
             n_jobs,
             ss,
+        )
+
+    def percentile_ci(
+        self,
+        confidence_level: float = 0.95,
+        side: Literal["two", "lower", "upper"] = "two",
+        b_resamples: int = 1000,
+        q_est_method: str = "median_unbiased",
+        n_jobs: int = 1,
+        seed: int | None = None,
+    ) -> ConfidenceInterval:
+        """
+        Compute a percentile confidence interval of the sample data.
+
+        This method does not perform the second level of resampling and thus
+        does not have the improved coverage properties of the double percentile
+        method.
+
+        Parameters
+        ----------
+        confidence_level : float, optional
+            The confidence level of the interval. Defaults to 0.95.
+        side : {"two", "lower", "upper"}, optional
+            The sideness of the interval. "two" for two-sided and "lower",
+            "upper" for one-sided. Defaults to "two".
+        b_resamples : int, optional
+            Number of bootstrap resamples. Defaults to 1000.
+        q_est_method: str, optional
+            Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
+            Defaults to "median_unbiased".
+        n_jobs: int, optional
+            Number of concurrent jobs used for the bootstrap procedure.
+            Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
+            Defaults to 1.
+        seed : int, optional
+            Seed for the random number genertion process. Defaults to None.
+
+        Returns
+        -------
+        ConfidenceInterval
+            The computed bootstrap confidence interval.
+
+        Raises
+        ------
+        ValueError
+            If ``confidence_level`` is not in (0, 1), ``side`` is invalid
+            or ``n_resamples <= 0``.
+        """
+        if not 0 < confidence_level < 1:
+            raise ValueError(
+                f"Confidence_level should be (0, 1); got {confidence_level}"
+            )
+        if side not in {"two", "lower", "upper"}:
+            raise ValueError(
+                f"Side must be 'two', 'lower' or 'upper'; got {side}"
+            )
+        if b_resamples <= 0:
+            raise ValueError("Number of resamples must be positive")
+
+        rng = np.random.default_rng(seed)
+
+        return self._percentile_ci(
+            confidence_level,
+            side,
+            b_resamples,
+            q_est_method,
+            n_jobs,
+            rng,
+        )
+
+    def _percentile_ci(
+        self,
+        confidence_level: float,
+        side: Literal["two", "lower", "upper"],
+        b_resamples: int,
+        q_est_method: str,
+        n_jobs: int,
+        rng: np.random.Generator,
+    ) -> ConfidenceInterval:
+        """
+        Internal method that computes the CI using the percentile bootstrap method.
+
+        Parameters
+        ----------
+        confidence_level: float
+            The confidence level of the interval.
+        side : {"two", "lower", "upper"}
+            The sideness of the interval. "two" for two-sided and "lower",
+            "upper" for one-sided.
+        b_resamples : int
+            Number of bootstrap resamples.
+        rng: np.random.Generator,
+            NumPy random number generator.
+
+        Returns
+        -------
+        ConfidenceInterval
+            The computed bootstrap confidence interval.
+        """
+        estimate = self._statistic(self._data_sample)
+
+        # The arguments to the statistic are evaluated before being passed
+        # to another process
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(self._statistic)(self._resampler.draw_sample(rng))
+            for _ in range(b_resamples)
+        )
+
+        l1_estimates = np.array(results)
+        alpha = 1 - confidence_level
+
+        match side:
+            case "two":
+                lower = DoubleBootstrap._quantile_per_component(
+                    l1_estimates, alpha / 2, q_est_method
+                )
+                upper = DoubleBootstrap._quantile_per_component(
+                    l1_estimates, 1 - alpha / 2, q_est_method
+                )
+            case "upper":
+                lower = np.full_like(estimate, -np.inf)
+                upper = DoubleBootstrap._quantile_per_component(
+                    l1_estimates, 1 - alpha, q_est_method
+                )
+            case "lower":
+                lower = DoubleBootstrap._quantile_per_component(
+                    l1_estimates, alpha, q_est_method
+                )
+                upper = np.full_like(estimate, np.inf)
+
+        return ConfidenceInterval(
+            estimate,
+            confidence_level,
+            side,
+            lower,
+            upper,
         )
 
     def _double_percentile_ci(
@@ -270,6 +409,7 @@ class DoubleBootstrap:
                 upper = np.full_like(estimate, np.inf)
 
         return ConfidenceInterval(
+            estimate,
             confidence_level,
             side,
             lower,
@@ -337,7 +477,7 @@ class DoubleBootstrap:
     @staticmethod
     def _quantile_per_component(
         data: npt.NDArray[np.float64],
-        quantiles: npt.NDArray[np.float64],
+        quantiles: npt.NDArray[np.float64] | float,
         q_est_method: str,
     ) -> npt.NDArray[np.float64]:
         """
@@ -350,7 +490,7 @@ class DoubleBootstrap:
         ----------
         data: npt.NDArray[np.float64]
             Data we want to compute per component quantiles for.
-        quantiles: npt.NDArray[np.float64]
+        quantiles: npt.NDArray[np.float64] | float
             Per component quantiles. Need to have the same shape as ``data[i]``.
         q_est_method: str
             Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
@@ -362,6 +502,16 @@ class DoubleBootstrap:
         """
         # Create a (B1, n_components) vector
         flat = data.reshape(data.shape[0], -1)
+
+        # This is important, since Python float doesn't have ravel. It's also
+        # relatively clean.
+        quantiles = np.asarray(quantiles)
+
+        # Add alpha to all components if it's a scalar (needed for percentile method)
+        if quantiles.ndim == 0:
+            quantiles = np.full(flat.shape[1], quantiles)
+
+        # Flatten the quantiles to make the loop simpler
         flat_a = quantiles.ravel()
 
         results = np.array(
