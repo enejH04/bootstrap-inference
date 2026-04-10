@@ -52,7 +52,7 @@ class DoubleBootstrap:
         If any of the following conditions are met:
 
         - If ``statistic`` is not callable.
-        - If ``resampler`` is not a subclass of ``Resampler``.
+        - If ``resampler`` is not an instance of ``Resampler``.
     """
 
     def __init__(
@@ -62,7 +62,7 @@ class DoubleBootstrap:
     ) -> None:
         if not isinstance(resampler, Resampler):
             raise TypeError(
-                f"resampler must be a subclass of Resampler, got {type(resampler)}"
+                f"resampler must be an instance of Resampler, got {type(resampler)}"
             )
         if not callable(statistic):
             raise TypeError("Statistic must be callable")

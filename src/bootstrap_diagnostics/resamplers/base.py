@@ -68,6 +68,9 @@ class Resampler(ABC):
         This is an abstract method. To implement a custom resampling procedure,
         (hierarchical, block, ...) subclasses must override this method.
 
+        To ensure that the results are fully reproducible, only use the provided
+        NumPy random number generator for all random operations.
+
         Parameters
         ----------
         rng : np.random.Generator
