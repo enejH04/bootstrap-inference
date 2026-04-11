@@ -1,10 +1,8 @@
 import numpy as np
 import numpy.typing as npt
 
-from .base import Resampler
 
-
-class IIDResampler(Resampler):
+class IIDResampler:
     """
     Resampler that draws new samples independently and identically distributed (IID)
     from the original dataset.
@@ -17,6 +15,43 @@ class IIDResampler(Resampler):
         The axis along which new resamples are drawn from the dataset.
         Defaults to 0.
     """
+
+    def __init__(
+        self,
+        data_sample: npt.ArrayLike,
+        axis: int = 0,
+    ) -> None:
+        try:
+            # TODO: add a wrapper for pandas data frames - this actually already
+            # works as long as the data frame can be converted to a Numpy array of floats
+            self._data_sample = np.asarray(data_sample)
+        except (ValueError, TypeError) as e:
+            raise ValueError(
+                "Cannot convert given array of data points to a NumPy array"
+            ) from e
+        if self._data_sample.size == 0:
+            raise ValueError(
+                "Input data sample is empty. Cannot perform bootstrap"
+            )
+        # Allow numpy negative axis indexing, but check that the axis
+        # is valid for the given data sample
+        if not (-self._data_sample.ndim <= axis < self._data_sample.ndim):
+            raise ValueError(
+                f"Invalid axis {axis} for data sample with {self._data_sample.ndim} dimensions"
+            )
+        self.axis = axis
+
+    @property
+    def data_sample(self) -> npt.NDArray:
+        """
+        The original dataset from which resamples are drawn.
+
+        Returns
+        -------
+        npt.NDArray
+            The original dataset as a NumPy array.
+        """
+        return self._data_sample
 
     def draw_sample(
         self,

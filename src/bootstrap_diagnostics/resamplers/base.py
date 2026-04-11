@@ -1,63 +1,32 @@
-from abc import ABC, abstractmethod
+from typing import Protocol
 
 import numpy as np
 import numpy.typing as npt
 
 
-class Resampler(ABC):
+class Resampler(Protocol):
     """
-    Abstract base class for bootstrap resampling strategies.
-
-    Parameters
-    ----------
-    data_sample : npt.ArrayLike
-        A dataset that can be converted to a NumPy array.
-    axis : int, optional
-        The axis along which resampling from `data_sample` is performed (e.g. 0 for rows, 1 for columns).
-        Defaults to 0.
-
-    Raises
-    ------
-    ValueError
-        If any of the following conditions are met:
-
-        - The input data sample cannot be converted to a NumPy array.
-        - The input data sample is empty.
-        - The axis argument is invalid for the given data sample.
+    Protocol for bootstrap resampling strategies.
 
     Notes
     -----
-    Subclasses must implement the `draw_sample` and `with_data` methods.
+    Implementations must implement the `draw_sample` and `with_data` methods.
     Resampled datasets must be compatible with the statistic being evaluated
     on the dataset.
     """
 
-    def __init__(
-        self,
-        data_sample: npt.ArrayLike,
-        axis: int = 0,
-    ) -> None:
-        try:
-            # TODO: add a wrapper for pandas data frames - this actually already
-            # works as long as the data frame can be converted to a Numpy array of floats
-            self.data_sample = np.asarray(data_sample)
-        except (ValueError, TypeError) as e:
-            raise ValueError(
-                "Cannot convert given array of data points to a NumPy array"
-            ) from e
-        if self.data_sample.size == 0:
-            raise ValueError(
-                "Input data sample is empty. Cannot perform bootstrap"
-            )
-        # Allow numpy negative axis indexing, but check that the axis
-        # is valid for the given data sample
-        if not (-self.data_sample.ndim <= axis < self.data_sample.ndim):
-            raise ValueError(
-                f"Invalid axis {axis} for data sample with {self.data_sample.ndim} dimensions"
-            )
-        self.axis = axis
+    @property
+    def data_sample(self) -> npt.NDArray:
+        """
+        The original dataset from which resamples are drawn.
 
-    @abstractmethod
+        Returns
+        -------
+        npt.NDArray
+            The original dataset as a NumPy array.
+        """
+        ...
+
     def draw_sample(
         self,
         rng: np.random.Generator,
@@ -84,7 +53,6 @@ class Resampler(ABC):
         ...
 
     # Note that this is needed to allow for different __init__ arguments
-    @abstractmethod
     def with_data(self, new_data_sample: npt.ArrayLike) -> "Resampler":
         """
         Create a new resampler instance with the same resampling strategy but

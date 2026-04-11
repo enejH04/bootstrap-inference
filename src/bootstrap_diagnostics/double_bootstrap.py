@@ -7,6 +7,19 @@ from joblib import Parallel, delayed
 
 from .resamplers import Resampler
 
+# Define this type for better readability and static type checking.
+QuantileEstimationMethod = Literal[
+    "inverted_cdf",
+    "averaged_inverted_cdf",
+    "closest_observation",
+    "interpolated_inverted_cdf",
+    "hazen",
+    "weibull",
+    "linear",
+    "median_unbiased",
+    "normal_unbiased",
+]
+
 
 @dataclass(frozen=True)
 class ConfidenceInterval:
@@ -33,7 +46,7 @@ class DoubleBootstrap:
     """
     Double bootstrap procedure.
 
-    Implements double percentile bootstrap procedure for
+    Implements double percentile and percentile bootstrap procedure for
     confidence interval construction.
 
     Note that the CIs for non-scalar statistics are component-wise and do not
@@ -55,7 +68,7 @@ class DoubleBootstrap:
         If any of the following conditions are met:
 
         - If ``statistic`` is not callable.
-        - If ``resampler`` is not an instance of ``Resampler``.
+        - If ``resampler`` is not compatible with the ``Resampler`` protocol.
     """
 
     def __init__(
@@ -63,9 +76,23 @@ class DoubleBootstrap:
         statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
         resampler: Resampler,
     ) -> None:
-        if not isinstance(resampler, Resampler):
+        if not (
+            hasattr(resampler, "draw_sample")
+            and callable(getattr(resampler, "draw_sample"))
+        ):
             raise TypeError(
-                f"resampler must be an instance of Resampler, got {type(resampler)}"
+                "Resampler must have a callable 'draw_sample' method"
+            )
+        if not (
+            hasattr(resampler, "with_data")
+            and callable(getattr(resampler, "with_data"))
+        ):
+            raise TypeError(
+                "Resampler must have a callable 'with_data' method that creates a new resampler with a different dataset"
+            )
+        if not hasattr(resampler, "data_sample"):
+            raise TypeError(
+                "Resampler must have a 'data_sample' property that returns the original dataset"
             )
         if not callable(statistic):
             raise TypeError("Statistic must be callable")
@@ -82,7 +109,7 @@ class DoubleBootstrap:
         side: Literal["two", "lower", "upper"] = "two",
         b1_resamples: int = 1000,
         b2_resamples: int = 250,
-        q_est_method: str = "median_unbiased",
+        q_est_method: QuantileEstimationMethod = "median_unbiased",
         n_jobs: int = 1,
         seed: int | None = None,
     ) -> ConfidenceInterval:
@@ -101,7 +128,7 @@ class DoubleBootstrap:
         b2_resamples : int, optional
             Number of bootstrap resamples in the second level for calibration
             of the percentile method. Defaults to 250.
-        q_est_method: str, optional
+        q_est_method: QuantileEstimationMethod, optional
             Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
             Defaults to "median_unbiased".
         n_jobs: int, optional
@@ -155,7 +182,7 @@ class DoubleBootstrap:
         confidence_level: float = 0.95,
         side: Literal["two", "lower", "upper"] = "two",
         b_resamples: int = 1000,
-        q_est_method: str = "median_unbiased",
+        q_est_method: QuantileEstimationMethod = "median_unbiased",
         n_jobs: int = 1,
         seed: int | None = None,
     ) -> ConfidenceInterval:
@@ -175,7 +202,7 @@ class DoubleBootstrap:
             "upper" for one-sided. Defaults to "two".
         b_resamples : int, optional
             Number of bootstrap resamples. Defaults to 1000.
-        q_est_method: str, optional
+        q_est_method: QuantileMethod, optional
             Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
             Defaults to "median_unbiased".
         n_jobs: int, optional
@@ -223,7 +250,7 @@ class DoubleBootstrap:
         confidence_level: float,
         side: Literal["two", "lower", "upper"],
         b_resamples: int,
-        q_est_method: str,
+        q_est_method: QuantileEstimationMethod,
         n_jobs: int,
         rng: np.random.Generator,
     ) -> ConfidenceInterval:
@@ -292,7 +319,7 @@ class DoubleBootstrap:
         side: Literal["two", "lower", "upper"],
         b1: int,
         b2: int,
-        q_est_method: str,
+        q_est_method: QuantileEstimationMethod,
         n_jobs: int,
         ss: np.random.SeedSequence,
     ) -> ConfidenceInterval:
@@ -312,7 +339,7 @@ class DoubleBootstrap:
         b2 : int, optional
             Number of bootstrap resamples in the second level for calibration
             of the percentile method.
-        q_est_method: str
+        q_est_method: QuantileEstimationMethod, optional
             Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
         n_jobs: int, optional
             Number of jobs used for the double bootstrap procedure.
@@ -378,7 +405,7 @@ class DoubleBootstrap:
                     [alpha / 2, 1 - alpha / 2],
                     axis=0,
                     method=q_est_method,
-                )
+                )  # type: ignore
                 lower = DoubleBootstrap._quantile_per_component(
                     l1_estimates, alpha_lower_db, q_est_method
                 )
@@ -424,7 +451,7 @@ class DoubleBootstrap:
         statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
         b2: int,
         ss: np.random.SeedSequence,
-    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    ) -> tuple[npt.NDArray[np.float64] | float, npt.NDArray[np.float64]]:
         """
         Internal method that computes the double bootstrap procedure for a single
         first level resample.
@@ -449,7 +476,7 @@ class DoubleBootstrap:
 
         Returns
         -------
-        tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]
+        tuple[npt.NDArray[np.float64] | float, npt.NDArray[np.float64]]
             The level 1 bootstrap estimate computed from the resample and G^*(hat{theta})
         """
 
@@ -477,8 +504,8 @@ class DoubleBootstrap:
     @staticmethod
     def _quantile_per_component(
         data: npt.NDArray[np.float64],
-        quantiles: npt.NDArray[np.float64] | float,
-        q_est_method: str,
+        quantile_levels: npt.NDArray[np.float64] | float,
+        q_est_method: QuantileEstimationMethod,
     ) -> npt.NDArray[np.float64]:
         """
         Internal method that computes the per component quantiles of the given data.
@@ -490,9 +517,9 @@ class DoubleBootstrap:
         ----------
         data: npt.NDArray[np.float64]
             Data we want to compute per component quantiles for.
-        quantiles: npt.NDArray[np.float64] | float
-            Per component quantiles. Need to have the same shape as ``data[i]``.
-        q_est_method: str
+        tail_probabilities: npt.NDArray[np.float64] | float
+            Tail probabilities for each component. Need to have the same shape as ``data[i]``.
+        q_est_method: QuantileEstimationMethod
             Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
 
         Returns
@@ -504,21 +531,22 @@ class DoubleBootstrap:
         flat = data.reshape(data.shape[0], -1)
 
         # This is important, since Python float doesn't have ravel. It's also
-        # relatively clean.
-        quantiles = np.asarray(quantiles)
+        # relatively clean. Make it unified
+        quantile_levels = np.asarray(quantile_levels)
 
-        # Add alpha to all components if it's a scalar (needed for percentile method)
-        if quantiles.ndim == 0:
-            quantiles = np.full(flat.shape[1], quantiles)
+        # Make sure quantiles has the same shape as the statistic output
+        # (same number of components)
+        if quantile_levels.ndim == 0:
+            quantile_levels = np.full(flat.shape[1], quantile_levels)
 
         # Flatten the quantiles to make the loop simpler
-        flat_a = quantiles.ravel()
+        flat_a = quantile_levels.ravel()
 
         results = np.array(
             [
                 np.quantile(flat[:, i], flat_a[i], method=q_est_method)
                 for i in range(len(flat_a))
             ]
-        ).reshape(quantiles.shape)
+        ).reshape(quantile_levels.shape)
 
         return results
