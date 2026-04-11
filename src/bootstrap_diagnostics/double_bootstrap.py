@@ -559,6 +559,6 @@ class DoubleBootstrap:
                 np.quantile(flat[:, i], flat_a[i], method=q_est_method)
                 for i in range(len(flat_a))
             ]
-        ).reshape(quantile_levels.shape)
+        ).reshape(data.shape[1:])
 
         return results
