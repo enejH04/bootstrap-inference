@@ -2,6 +2,7 @@ from typing import Protocol
 
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 
 
 class Resampler(Protocol):
@@ -16,13 +17,13 @@ class Resampler(Protocol):
     """
 
     @property
-    def data_sample(self) -> npt.NDArray:
+    def data_sample(self) -> npt.NDArray | pd.DataFrame:
         """
         The original dataset from which resamples are drawn.
 
         Returns
         -------
-        npt.NDArray
+        npt.NDArray | pd.DataFrame
             The original dataset as a NumPy array.
         """
         ...
@@ -30,7 +31,7 @@ class Resampler(Protocol):
     def draw_sample(
         self,
         rng: np.random.Generator,
-    ) -> npt.NDArray:
+    ) -> npt.NDArray | pd.DataFrame:
         """
         Generate a single bootstrap resample of the data.
 
@@ -47,13 +48,15 @@ class Resampler(Protocol):
 
         Returns
         -------
-        npt.NDArray
+        npt.NDArray | pd.DataFrame
             A new dataset of the same shape and type as ``self.data_sample``.
         """
         ...
 
     # Note that this is needed to allow for different __init__ arguments
-    def with_data(self, new_data_sample: npt.ArrayLike) -> "Resampler":
+    def with_data(
+        self, new_data_sample: npt.ArrayLike | pd.DataFrame
+    ) -> 'Resampler':
         """
         Create a new resampler instance with the same resampling strategy but
         a different input dataset.
@@ -64,8 +67,8 @@ class Resampler(Protocol):
 
         Parameters
         ----------
-        new_data_sample : npt.ArrayLike
-            A new dataset that can be converted to a NumPy array.
+        new_data_sample : npt.ArrayLike | pd.DataFrame
+            A new dataset.
 
         Returns
         -------

@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 
 
 class IIDResampler:
@@ -9,54 +10,57 @@ class IIDResampler:
 
     Parameters
     ----------
-    data_sample : npt.ArrayLike
+    data_sample : npt.ArrayLike | pd.DataFrame
         A dataset that can be converted to a NumPy array.
     axis : int, optional
         The axis along which new resamples are drawn from the dataset.
         Defaults to 0.
+
+
+    Raises
+    ------
+    ValueError
+        If any of the following conditions are met:
+
+        - The input ``data_sample`` is empty.
+        - The ``axis`` argument is invalid for the given ``data_sample``.
     """
 
     def __init__(
         self,
-        data_sample: npt.ArrayLike,
+        data_sample: npt.NDArray | pd.DataFrame,
         axis: int = 0,
     ) -> None:
-        try:
-            # TODO: add a wrapper for pandas data frames - this actually already
-            # works as long as the data frame can be converted to a Numpy array of floats
-            self._data_sample = np.asarray(data_sample)
-        except (ValueError, TypeError) as e:
+        self._data_sample = data_sample
+        self._axis = axis
+
+        if self._data_sample.shape[self._axis] == 0:
             raise ValueError(
-                "Cannot convert given array of data points to a NumPy array"
-            ) from e
-        if self._data_sample.size == 0:
-            raise ValueError(
-                "Input data sample is empty. Cannot perform bootstrap"
+                "Data sample must have at least one observation along the resampling axis"
             )
         # Allow numpy negative axis indexing, but check that the axis
         # is valid for the given data sample
-        if not (-self._data_sample.ndim <= axis < self._data_sample.ndim):
+        if not (-self._data_sample.ndim <= self._axis < self._data_sample.ndim):
             raise ValueError(
-                f"Invalid axis {axis} for data sample with {self._data_sample.ndim} dimensions"
+                f"Invalid axis {self._axis} for data sample with {self._data_sample.ndim} dimensions"
             )
-        self.axis = axis
 
     @property
-    def data_sample(self) -> npt.NDArray:
+    def data_sample(self) -> npt.NDArray | pd.DataFrame:
         """
         The original dataset from which resamples are drawn.
 
         Returns
         -------
-        npt.NDArray
-            The original dataset as a NumPy array.
+        npt.NDArray | pd.DataFrame
+            The original dataset as a NumPy array or pandas DataFrame.
         """
         return self._data_sample
 
     def draw_sample(
         self,
         rng: np.random.Generator,
-    ) -> npt.NDArray:
+    ) -> npt.NDArray | pd.DataFrame:
         """
         Generate a single bootstrap resample of the data by drawing IID samples
         with replacement from the original dataset.
@@ -68,21 +72,22 @@ class IIDResampler:
 
         Returns
         -------
-        npt.NDArray
+        npt.NDArray | pd.DataFrame
             A new dataset of the same shape and type as ``self.data_sample``.
         """
-        n_resamples = self.data_sample.shape[self.axis]
+        n_resamples = self.data_sample.shape[self._axis]
 
         # Sample indices with replacement from the original dataset
         indices = rng.integers(low=0, high=n_resamples, size=n_resamples)
         # Use the sampled indices to create the resampled dataset
-        resample = np.take(self.data_sample, indices, axis=self.axis)
+        # Ignore this type erro because pandas DataFrames support the .take method with axis argument, and NumPy arrays also support it, but the types differe slightly (Axis vs int).
+        resample = self.data_sample.take(indices, axis=self._axis)  # type: ignore
 
         return resample
 
     def with_data(
         self,
-        new_data_sample: npt.ArrayLike,
+        new_data_sample: npt.NDArray | pd.DataFrame,
     ) -> "IIDResampler":
         """
         Create a new ``IIDResampler`` instance with the same resampling strategy but
@@ -90,12 +95,12 @@ class IIDResampler:
 
         Parameters
         ----------
-        new_data_sample : npt.ArrayLike
-            A new dataset that can be converted to a NumPy array.
+        new_data_sample : npt.NDArray | pd.DataFrame
+            A new dataset.
 
         Returns
         -------
         IIDResampler
             A new ``IIDResampler`` instance initialized with the new dataset.
         """
-        return IIDResampler(new_data_sample, axis=self.axis)
+        return IIDResampler(new_data_sample, axis=self._axis)

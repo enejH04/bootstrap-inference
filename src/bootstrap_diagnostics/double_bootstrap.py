@@ -3,6 +3,7 @@ from typing import Callable, Literal
 
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 from joblib import Parallel, delayed
 
 from .resamplers import Resampler
@@ -73,7 +74,9 @@ class DoubleBootstrap:
 
     def __init__(
         self,
-        statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
+        statistic: Callable[
+            [npt.ArrayLike | pd.DataFrame], npt.NDArray[np.float64] | float
+        ],
         resampler: Resampler,
     ) -> None:
         if not (

@@ -1,5 +1,5 @@
-from .double_bootstrap import DoubleBootstrap, ConfidenceInterval
-from .resamplers import Resampler, IIDResampler
+from .double_bootstrap import ConfidenceInterval, DoubleBootstrap
+from .resamplers import IIDResampler, Resampler
 
 __all__ = [
     "DoubleBootstrap",
