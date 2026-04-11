@@ -1,3 +1,4 @@
+import warnings
 from dataclasses import dataclass
 from typing import Callable, Literal
 
@@ -105,6 +106,14 @@ class DoubleBootstrap:
 
         # Store the original data sample from the resampler
         self._data_sample = resampler.data_sample
+
+        if isinstance(self._data_sample, pd.DataFrame):
+            warnings.warn(
+                "Data sample is a pandas DataFrame. This introduces additional overhead during resampling. "
+                "If performance is a concern, consider converting the DataFrame to a NumPy array before passing it to the resampler and updating the statistic.",
+                UserWarning,
+                stacklevel=2,
+            )
 
     def double_percentile_ci(
         self,

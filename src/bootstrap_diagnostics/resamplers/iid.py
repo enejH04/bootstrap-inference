@@ -1,3 +1,5 @@
+from typing import cast
+
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -45,6 +47,16 @@ class IIDResampler:
                 f"Invalid axis {self._axis} for data sample with {self._data_sample.ndim} dimensions"
             )
 
+        # If the data sample is a DataFrame, store the values and columns for faster resampling
+        # Cache the data
+        # This is needed for the static type checker
+        if isinstance(self._data_sample, pd.DataFrame):
+            self._is_dataframe = True
+            self._values = self._data_sample.values
+            self._columns = self._data_sample.columns
+        else:
+            self._is_dataframe = False
+
     @property
     def data_sample(self) -> npt.NDArray | pd.DataFrame:
         """
@@ -79,9 +91,13 @@ class IIDResampler:
 
         # Sample indices with replacement from the original dataset
         indices = rng.integers(low=0, high=n_resamples, size=n_resamples)
+
         # Use the sampled indices to create the resampled dataset
-        # Ignore this type erro because pandas DataFrames support the .take method with axis argument, and NumPy arrays also support it, but the types differe slightly (Axis vs int).
-        resample = self.data_sample.take(indices, axis=self._axis)  # type: ignore
+        if self._is_dataframe:
+            resample = np.take(self._values, indices, axis=self._axis)
+            return pd.DataFrame(resample, columns=self._columns, copy=False)
+
+        resample = np.take(self.data_sample, indices, axis=self._axis)
 
         return resample
 
