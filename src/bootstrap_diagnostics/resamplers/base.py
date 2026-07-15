@@ -35,10 +35,10 @@ class Resampler(Protocol):
         """
         Generate a single bootstrap resample of the data.
 
-        This is an abstract method. To implement a custom resampling procedure,
+        To implement a custom resampling procedure,
         (hierarchical, block, ...) subclasses must override this method.
 
-        To ensure that the results are fully reproducible, only use the provided
+        To ensure that the results are fully reproducible, use the provided
         NumPy random number generator for all random operations.
 
         Parameters
@@ -56,7 +56,7 @@ class Resampler(Protocol):
     # Note that this is needed to allow for different __init__ arguments
     def with_data(
         self, new_data_sample: npt.ArrayLike | pd.DataFrame
-    ) -> 'Resampler':
+    ) -> "Resampler":
         """
         Create a new resampler instance with the same resampling strategy but
         a different input dataset.

@@ -41,8 +41,6 @@ class ConfidenceInterval:
     def __str__(self) -> str:
         return f"estimate = {self.estimate}\nlower = {self.lower}\nupper = {self.upper}\nconfidence level = {self.confidence_level}, side = {self.side}"
 
-    # TODO: diagnostic results could potentially be included here?
-
 
 class DoubleBootstrap:
     """
@@ -57,9 +55,8 @@ class DoubleBootstrap:
     Parameters
     ----------
 
-    statistic : Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float]
-        The function used to calculate the statistic of interest.
-        Must follow the signature `f(data) -> npt.NDArray[np.float64] | float`.
+    statistic : Callable[..., npt.NDArray[np.float64] | float]
+        The function used to calculate the statistic of interest. Returns a NumPy array or float.
 
     resampler : Resampler
         The ``Resampler`` that implements the desired resampling procedure.
@@ -75,9 +72,7 @@ class DoubleBootstrap:
 
     def __init__(
         self,
-        statistic: Callable[
-            [npt.ArrayLike | pd.DataFrame], npt.NDArray[np.float64] | float
-        ],
+        statistic: Callable[..., npt.NDArray[np.float64] | float],
         resampler: Resampler,
     ) -> None:
         if not (
@@ -417,7 +412,7 @@ class DoubleBootstrap:
                     [alpha / 2, 1 - alpha / 2],
                     axis=0,
                     method=q_est_method,
-                )  # type: ignore
+                )
                 lower = DoubleBootstrap._quantile_per_component(
                     l1_estimates, alpha_lower_db, q_est_method
                 )

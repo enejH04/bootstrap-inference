@@ -103,7 +103,7 @@ class IIDResampler:
 
     def with_data(
         self,
-        new_data_sample: npt.NDArray | pd.DataFrame,
+        new_data_sample: npt.ArrayLike | pd.DataFrame,
     ) -> "IIDResampler":
         """
         Create a new ``IIDResampler`` instance with the same resampling strategy but
