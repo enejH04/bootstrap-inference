@@ -455,7 +455,7 @@ class DoubleBootstrap:
         estimate: npt.NDArray[np.float64] | float,
         data_sample: npt.ArrayLike,
         resampler: Resampler,
-        statistic: Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float],
+        statistic: Callable[..., npt.NDArray[np.float64] | float],
         b2: int,
         ss: np.random.SeedSequence,
     ) -> tuple[npt.NDArray[np.float64] | float, npt.NDArray[np.float64]]:
@@ -471,7 +471,7 @@ class DoubleBootstrap:
             The data sample used for sampling the second level bootstrap datasets.
         resampler: Resampler
             The resampler used to construct the second level bootstrap resampler.
-        statistic : Callable[[npt.ArrayLike], npt.NDArray[np.float64] | float]
+        statistic : Callable[..., npt.NDArray[np.float64] | float]
             The function used to calculate the statistic of interest.
             Must follow the signature `f(data) -> npt.NDArray[np.float64] | float`.
         b2 : int
