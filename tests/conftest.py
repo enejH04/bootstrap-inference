@@ -3,7 +3,7 @@ import numpy.typing as npt
 import pandas as pd
 import pytest
 
-from bootstrap_diagnostics import IIDResampler
+from bootstrap_diagnostics import HierarchicalResampler, IIDResampler
 
 
 # Test with different array shapes
@@ -21,6 +21,17 @@ def data(request):
 
 
 @pytest.fixture
+def hierarchical_data():
+    return pd.DataFrame(
+        {
+            "school": ["A", "A", "A", "B", "B", "C", "C", "C"],
+            "classroom": [1, 1, 2, 1, 2, 1, 1, 2],
+            "student_score": [85, 90, 88, 70, 72, 95, 91, 99],
+        }
+    )
+
+
+@pytest.fixture
 def rng():
     return np.random.default_rng(0)
 
@@ -35,3 +46,13 @@ def rng():
 )
 def resampler(request, data):
     return request.param(data)
+
+
+@pytest.fixture
+def hierarchical_resampler(hierarchical_data):
+    # Sample schools with replacement, but keep all classrooms and students exactly as they are
+    return HierarchicalResampler(
+        hierarchical_data,
+        hierarchy=[("school", True), ("classroom", False)],
+        observation_replacement=False,
+    )

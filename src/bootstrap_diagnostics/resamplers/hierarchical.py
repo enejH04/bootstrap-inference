@@ -1,4 +1,4 @@
-from typing import Any, Self, Sequence
+from typing import Any, Self
 
 import numpy as np
 import numpy.typing as npt
@@ -69,19 +69,14 @@ class HierarchicalResampler(Resampler):
         self._hierarchy_cols, self._group_replacement = zip(*hierarchy)
 
         # Build the hierarchy tree
-        self._hierarchy_tree = self._build_hierarchy_tree(self._hierarchy_cols)
+        self._hierarchy_tree = self._build_hierarchy_tree()
 
-    def _build_hierarchy_tree(self, hierarchy: Sequence[str]) -> HierarchNode:
+    def _build_hierarchy_tree(self) -> HierarchNode:
         """
         Construct the hierarchy tree from the input DataFrame.
 
         Internal nodes correspond to grouping levels, while leaf nodes contain the
         row indices of the observations belonging to each terminal group.
-
-        Parameters
-        ----------
-        hierarchy : Sequence[str]
-            Ordered grouping columns defining the hierarchy.
 
         Returns
         -------
@@ -93,9 +88,9 @@ class HierarchicalResampler(Resampler):
 
         root = {}
 
-        # Pandas >=3.0 has observed=True as default
+        # Pandas >=3.0 has observed=True as default (can be problematic with categorical columns)
         grouped_data = self._data_sample.groupby(
-            hierarchy, sort=False, observed=True
+            list(self._hierarchy_cols), sort=False, observed=True
         ).groups
 
         for keys, idx in grouped_data.items():
