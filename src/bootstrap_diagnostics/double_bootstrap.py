@@ -67,7 +67,7 @@ class DoubleBootstrap:
         If any of the following conditions are met:
 
         - If ``statistic`` is not callable.
-        - If ``resampler`` is not compatible with the ``Resampler`` protocol.
+        - If ``resampler`` is not an instance of Resampler.
     """
 
     def __init__(
@@ -75,24 +75,8 @@ class DoubleBootstrap:
         statistic: Callable[..., npt.NDArray[np.float64] | float],
         resampler: Resampler,
     ) -> None:
-        if not (
-            hasattr(resampler, "draw_sample")
-            and callable(getattr(resampler, "draw_sample"))
-        ):
-            raise TypeError(
-                "Resampler must have a callable 'draw_sample' method"
-            )
-        if not (
-            hasattr(resampler, "with_data")
-            and callable(getattr(resampler, "with_data"))
-        ):
-            raise TypeError(
-                "Resampler must have a callable 'with_data' method that creates a new resampler with a different dataset"
-            )
-        if not hasattr(resampler, "data_sample"):
-            raise TypeError(
-                "Resampler must have a 'data_sample' property that returns the original dataset"
-            )
+        if not isinstance(resampler, Resampler):
+            raise TypeError("resampler must be an instance of Resampler")
         if not callable(statistic):
             raise TypeError("Statistic must be callable")
 

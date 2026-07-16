@@ -12,7 +12,43 @@ HierarchNode = dict[Any, "HierarchNode"] | npt.NDArray
 
 class HierarchicalResampler(Resampler):
     """
-    Resampler that draws new samples according to the pre-defined hierarchy.
+    Resampler for hierarchical data.
+
+    Observations are assumed to be organized into one or more nested grouping
+    levels. The hierarchy is defined by a sequence of DataFrame columns, from
+    the highest to the lowest level. At each level, groups may either be
+    resampled with replacement or retained exactly once.
+
+    For example, given the hierarchy
+
+        [("school", True), ("classroom", False)]
+
+    schools are sampled with replacement, while all classrooms belonging to
+    each sampled school are retained.
+
+    Once a terminal group is reached, observations may optionally be
+    resampled with replacement.
+
+    Parameters
+    ----------
+    data_sample : pd.DataFrame
+        Dataset containing the observations and hierarchy columns.
+    hierarchy : list[tuple[str, bool]]
+        Sequence of ``(column, replace)`` pairs defining the hierarchy and
+        replacement strategy from highest to lowest level.
+
+        ``replace=True`` indicates that groups at that level are sampled with
+        replacement, while ``False`` retains each group exactly once.
+    observation_replacement : bool
+        Whether observations within each terminal group are sampled with
+        replacement. Defaults to ``False``.
+
+    Raises
+    ------
+    ValueError
+        If ``hierarchy`` is empty.
+    TypeError
+        If ``data_sample`` is not a pandas DataFrame.
     """
 
     def __init__(
@@ -33,13 +69,29 @@ class HierarchicalResampler(Resampler):
         self._hierarchy_cols, self._group_replacement = zip(*hierarchy)
 
         # Build the hierarchy tree
-        self._hierarchy_tree = self._build_hierarchy(self._hierarchy_cols)
+        self._hierarchy_tree = self._build_hierarchy_tree(self._hierarchy_cols)
 
-    def _build_hierarchy(self, hierarchy: Sequence[str]) -> HierarchNode:
+    def _build_hierarchy_tree(self, hierarchy: Sequence[str]) -> HierarchNode:
+        """
+        Construct the hierarchy tree from the input DataFrame.
+
+        Internal nodes correspond to grouping levels, while leaf nodes contain the
+        row indices of the observations belonging to each terminal group.
+
+        Parameters
+        ----------
+        hierarchy : Sequence[str]
+            Ordered grouping columns defining the hierarchy.
+
+        Returns
+        -------
+        HierarchNode
+            Root node of the hierarchy tree.
+        """
         if not isinstance(self._data_sample, pd.DataFrame):
             raise TypeError("HierarchicalResampler requires a pandas DataFrame")
 
-        tree = {}
+        root = {}
 
         # Pandas >=3.0 has observed=True as default
         grouped_data = self._data_sample.groupby(
@@ -48,7 +100,7 @@ class HierarchicalResampler(Resampler):
 
         for keys, idx in grouped_data.items():
             # Traverse the tree
-            node = tree
+            node = root
 
             # Given hierarchy like ["A"], keys will be an int not a tuple
             if not isinstance(keys, tuple):
@@ -59,12 +111,27 @@ class HierarchicalResampler(Resampler):
 
             node[keys[-1]] = idx.to_numpy()
 
-        return tree
+        return root
 
     def draw_sample(
         self,
         rng: np.random.Generator,
     ) -> pd.DataFrame:
+        """
+        Draw a bootstrap sample according to the configured hierarchy.
+
+        Groups are recursively traversed from the highest to the lowest level.
+        At each level, groups are either resampled with replacement or visited
+        exactly once according to the provided strategy.
+        Observations within each terminal group may optionally be resampled with
+        replacement.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A bootstrap sample preserving the hierarchical structure implied by
+            the resampling strategy.
+        """
         row_idxs = []
 
         def build_sample(
@@ -94,7 +161,7 @@ class HierarchicalResampler(Resampler):
 
         build_sample(self._hierarchy_tree)
 
-        # Concatenate the cases indeces
+        # Concatenate the sampled row indices
         idxs = np.concatenate(row_idxs)
 
         return self._data_sample.iloc[idxs]  # ty:ignore[unresolved-attribute]
