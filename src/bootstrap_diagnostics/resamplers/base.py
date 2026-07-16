@@ -1,13 +1,29 @@
-from typing import Protocol
+from abc import ABC, abstractmethod
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
 
-class Resampler(Protocol):
+class Resampler(ABC):
     """
-    Protocol for bootstrap resampling strategies.
+    Abstract base class for bootstrap resampling strategies.
+
+    Parameters
+    ----------
+    data_sample : npt.ArrayLike | pd.DataFrame
+        The input dataset used for resampling.
+    axis : int, optional
+        The axis along which new resamples are drawn from the dataset.
+        Defaults to 0.
+
+    Raises
+    ------
+    ValueError
+        If any of the following conditions are met:
+        - The input ``data_sample`` is empty.
+        - The ``axis`` argument is invalid for the given ``data_sample``.
 
     Notes
     -----
@@ -15,6 +31,35 @@ class Resampler(Protocol):
     Resampled datasets must be compatible with the statistic being evaluated
     on the dataset.
     """
+
+    def __init__(
+        self,
+        data_sample: npt.NDArray | pd.DataFrame,
+        axis: int = 0,
+    ) -> None:
+        self._data_sample = data_sample
+        self._axis = axis
+
+        # Allow numpy negative axis indexing, but check that the axis
+        # is valid for the given data sample
+        if not (-self._data_sample.ndim <= self._axis < self._data_sample.ndim):
+            raise ValueError(
+                f"Invalid axis {self._axis} for data sample with {self._data_sample.ndim} dimensions"
+            )
+        if self._data_sample.shape[self._axis] == 0:
+            raise ValueError(
+                "Data sample must have at least one observation along the resampling axis"
+            )
+
+        # If the data sample is a DataFrame, store the values and columns for faster resampling
+        # Cache the data
+        # This is needed for the static type checker
+        if isinstance(self._data_sample, pd.DataFrame):
+            self._is_dataframe = True
+            self._values = self._data_sample.values
+            self._columns = self._data_sample.columns
+        else:
+            self._is_dataframe = False
 
     @property
     def data_sample(self) -> npt.NDArray | pd.DataFrame:
@@ -26,8 +71,9 @@ class Resampler(Protocol):
         npt.NDArray | pd.DataFrame
             The original dataset as a NumPy array.
         """
-        ...
+        return self._data_sample
 
+    @abstractmethod
     def draw_sample(
         self,
         rng: np.random.Generator,
@@ -54,9 +100,8 @@ class Resampler(Protocol):
         ...
 
     # Note that this is needed to allow for different __init__ arguments
-    def with_data(
-        self, new_data_sample: npt.ArrayLike | pd.DataFrame
-    ) -> "Resampler":
+    @abstractmethod
+    def with_data(self, new_data_sample: npt.NDArray | pd.DataFrame) -> Self:
         """
         Create a new resampler instance with the same resampling strategy but
         a different input dataset.

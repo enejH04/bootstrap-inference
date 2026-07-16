@@ -453,7 +453,7 @@ class DoubleBootstrap:
     @staticmethod
     def _process_b1(
         estimate: npt.NDArray[np.float64] | float,
-        data_sample: npt.ArrayLike,
+        data_sample: npt.NDArray | pd.DataFrame,
         resampler: Resampler,
         statistic: Callable[..., npt.NDArray[np.float64] | float],
         b2: int,
