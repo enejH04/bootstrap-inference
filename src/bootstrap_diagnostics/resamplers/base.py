@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Self
+from typing import Any, Self
 
 import numpy as np
 import numpy.typing as npt
@@ -51,16 +51,6 @@ class Resampler(ABC):
                 "Data sample must have at least one observation along the resampling axis"
             )
 
-        # If the data sample is a DataFrame, store the values and columns for faster resampling
-        # Cache the data
-        # This is needed for the static type checker
-        if isinstance(self._data_sample, pd.DataFrame):
-            self._is_dataframe = True
-            self._values = self._data_sample.values
-            self._columns = self._data_sample.columns
-        else:
-            self._is_dataframe = False
-
     @property
     def data_sample(self) -> npt.NDArray | pd.DataFrame:
         """
@@ -101,7 +91,7 @@ class Resampler(ABC):
 
     # Note that this is needed to allow for different __init__ arguments
     @abstractmethod
-    def with_data(self, new_data_sample: npt.NDArray | pd.DataFrame) -> Self:
+    def with_data(self, new_data_sample: Any) -> Self:
         """
         Create a new resampler instance with the same resampling strategy but
         a different input dataset.
@@ -112,7 +102,7 @@ class Resampler(ABC):
 
         Parameters
         ----------
-        new_data_sample : npt.ArrayLike | pd.DataFrame
+        new_data_sample : Any
             A new dataset.
 
         Returns
