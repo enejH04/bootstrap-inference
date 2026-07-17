@@ -1,5 +1,13 @@
-from .double_bootstrap import ConfidenceInterval, DoubleBootstrap
-from .resamplers import HierarchicalResampler, IIDResampler, Resampler
+from .double_bootstrap import (
+    ConfidenceInterval,
+    DoubleBootstrap,
+)
+from .resamplers import (
+    HierarchicalResampler,
+    IIDResampler,
+    MovingBlockResampler,
+    Resampler,
+)
 
 __all__ = [
     "DoubleBootstrap",
@@ -7,4 +15,5 @@ __all__ = [
     "Resampler",
     "IIDResampler",
     "HierarchicalResampler",
+    "MovingBlockResampler",
 ]
