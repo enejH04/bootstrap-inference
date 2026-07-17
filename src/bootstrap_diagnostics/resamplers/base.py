@@ -27,7 +27,7 @@ class Resampler(ABC):
 
     Notes
     -----
-    Implementations must implement the `draw_sample` and `with_data` methods.
+    Implementations must implement the `_draw_indices` and `with_data` methods.
     Resampled datasets must be compatible with the statistic being evaluated
     on the dataset.
     """
@@ -63,16 +63,12 @@ class Resampler(ABC):
         """
         return self._data_sample
 
-    @abstractmethod
     def draw_sample(
         self,
         rng: np.random.Generator,
     ) -> npt.NDArray | pd.DataFrame:
         """
         Generate a single bootstrap resample of the data.
-
-        To implement a custom resampling procedure,
-        (hierarchical, block, ...) subclasses must override this method.
 
         To ensure that the results are fully reproducible, use the provided
         NumPy random number generator for all random operations.
@@ -86,6 +82,31 @@ class Resampler(ABC):
         -------
         npt.NDArray | pd.DataFrame
             A new dataset of the same shape and type as ``self.data_sample``.
+        """
+        indices = self._draw_indices(rng)
+
+        # Use the sampled indices to create the resampled dataset
+        if isinstance(self._data_sample, pd.DataFrame):
+            return self._data_sample.iloc[indices].reset_index(drop=True)
+
+        resample = np.take(self._data_sample, indices, axis=self._axis)
+
+        return resample
+
+    @abstractmethod
+    def _draw_indices(self, rng: np.random.Generator) -> npt.NDArray:
+        """
+        Generate indices for a single bootstrap resample of the data.
+
+        Parameters
+        ----------
+        rng : np.random.Generator
+            NumPy random number generator.
+
+        Returns
+        -------
+        npt.NDArray
+            An array of indices used to resample from the dataset.
         """
         ...
 

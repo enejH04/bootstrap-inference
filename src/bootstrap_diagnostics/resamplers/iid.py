@@ -13,22 +13,11 @@ class IIDResampler(Resampler):
     from the original dataset.
     """
 
-    def draw_sample(
-        self,
-        rng: np.random.Generator,
-    ) -> npt.NDArray | pd.DataFrame:
-        n_resamples = self.data_sample.shape[self._axis]
+    def _draw_indices(self, rng: np.random.Generator) -> npt.NDArray:
+        n_observations = self.data_sample.shape[self._axis]
 
         # Sample indices with replacement from the original dataset
-        indices = rng.integers(low=0, high=n_resamples, size=n_resamples)
-
-        # Use the sampled indices to create the resampled dataset
-        if isinstance(self._data_sample, pd.DataFrame):
-            return self._data_sample.iloc[indices].reset_index(drop=True)
-
-        resample = np.take(self.data_sample, indices, axis=self._axis)
-
-        return resample
+        return rng.integers(low=0, high=n_observations, size=n_observations)
 
     def with_data(
         self,

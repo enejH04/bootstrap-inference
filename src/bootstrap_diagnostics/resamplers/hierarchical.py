@@ -123,26 +123,32 @@ class HierarchicalResampler(Resampler):
 
         return root
 
-    def draw_sample(
+    def _draw_indices(
         self,
         rng: np.random.Generator,
-    ) -> pd.DataFrame:
+    ) -> npt.NDArray:
         """
-        Draw a bootstrap sample according to the configured hierarchy.
+        Generate bootstrap sample indices according to the configured hierarchy.
 
         Groups are recursively traversed from the highest to the lowest level.
         At each level, groups are either resampled with replacement or visited
         exactly once according to the provided strategy.
-        Observations within each terminal group may optionally be resampled with
-        replacement.
+
+        Once a terminal group is reached, observations are either retained or
+        resampled with replacement depending on ``observation_replacement``.
+
+        Parameters
+        ----------
+        rng : np.random.Generator
+            NumPy random number generator used for all random operations.
 
         Returns
         -------
-        pandas.DataFrame
-            A bootstrap sample preserving the hierarchical structure implied by
-            the resampling strategy.
+        npt.NDArray
+            Array of row indices defining the bootstrap sample.
         """
-        row_idxs = []
+
+        indices = []
 
         def build_sample(
             node: HierarchyNode,
@@ -151,10 +157,10 @@ class HierarchicalResampler(Resampler):
             if not isinstance(node, dict):
                 if self._observation_replacement:
                     # Resample individual observations with replacement
-                    row_idxs.append(rng.choice(node, len(node), replace=True))
+                    indices.append(rng.choice(node, len(node), replace=True))
                 else:
                     # Add all observations
-                    row_idxs.append(node)
+                    indices.append(node)
                 return
 
             keys = list(node.keys())
@@ -175,10 +181,7 @@ class HierarchicalResampler(Resampler):
         build_sample(self._hierarchy_tree)
 
         # Concatenate the sampled row indices
-        idxs = np.concatenate(row_idxs)
-
-        # Reset the index so it doesn't lead to problems down the line
-        return self._data_sample.iloc[idxs].reset_index(drop=True)
+        return np.concatenate(indices)
 
     def with_data(
         self,
