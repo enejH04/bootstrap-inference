@@ -161,7 +161,10 @@ class HierarchicalResampler(Resampler):
 
             # Use the strategy to determine if we should resample keys with replacement
             if self._group_replacement[depth]:
-                key_idx = rng.integers(len(keys), size=len(keys))
+                key_idx = rng.integers(
+                    len(keys),
+                    size=len(keys),
+                )
                 resampled_keys = [keys[i] for i in key_idx]
             else:
                 resampled_keys = keys
