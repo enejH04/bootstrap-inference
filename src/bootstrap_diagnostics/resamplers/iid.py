@@ -24,7 +24,7 @@ class IIDResampler(Resampler):
 
         # Use the sampled indices to create the resampled dataset
         if isinstance(self._data_sample, pd.DataFrame):
-            return self._data_sample.iloc[indices]
+            return self._data_sample.iloc[indices].reset_index(drop=True)
 
         resample = np.take(self.data_sample, indices, axis=self._axis)
 
