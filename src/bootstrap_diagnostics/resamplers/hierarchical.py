@@ -7,7 +7,7 @@ import pandas as pd
 from .base import Resampler
 
 # The node in the hierarchy tree
-HierarchNode = dict[Any, "HierarchNode"] | npt.NDArray
+HierarchyNode = dict[Any, "HierarchyNode"] | npt.NDArray
 
 
 class HierarchicalResampler(Resampler):
@@ -46,7 +46,9 @@ class HierarchicalResampler(Resampler):
     Raises
     ------
     ValueError
+        If ``data_sample`` is empty.
         If ``hierarchy`` is empty.
+        If all columns in ``hierarchy`` aren't in the ``data_sample``.
     TypeError
         If ``data_sample`` is not a pandas DataFrame.
     """
@@ -57,10 +59,22 @@ class HierarchicalResampler(Resampler):
         hierarchy: list[tuple[str, bool]],
         observation_replacement: bool = False,
     ) -> None:
+        if not isinstance(data_sample, pd.DataFrame):
+            raise TypeError("HierarchicalResampler requires a pandas DataFrame")
+        if data_sample.empty:
+            raise ValueError("data_sample should not be empty")
+
+        # Not necessary but add this if Resampler changes in the future
         super().__init__(data_sample)
 
+        self._data_sample: pd.DataFrame = data_sample
+
         if not hierarchy:
-            raise ValueError("Hierarchy must contain at least one level.")
+            raise ValueError("Hierarchy must contain at least one level")
+        if any(len(pair) != 2 for pair in hierarchy):
+            raise ValueError(
+                "Hierarchy entries must be (column, replace) pairs"
+            )
 
         self._hierarchy = hierarchy
         self._observation_replacement = observation_replacement
@@ -68,10 +82,14 @@ class HierarchicalResampler(Resampler):
         # Group columns and replacement strategies
         self._hierarchy_cols, self._group_replacement = zip(*hierarchy)
 
+        missing = set(self._hierarchy_cols) - set(self._data_sample.columns)
+        if missing:
+            raise ValueError(f"Missing hierarchy columns: {missing}")
+
         # Build the hierarchy tree
         self._hierarchy_tree = self._build_hierarchy_tree()
 
-    def _build_hierarchy_tree(self) -> HierarchNode:
+    def _build_hierarchy_tree(self) -> HierarchyNode:
         """
         Construct the hierarchy tree from the input DataFrame.
 
@@ -83,9 +101,6 @@ class HierarchicalResampler(Resampler):
         HierarchNode
             Root node of the hierarchy tree.
         """
-        if not isinstance(self._data_sample, pd.DataFrame):
-            raise TypeError("HierarchicalResampler requires a pandas DataFrame")
-
         root = {}
 
         # Pandas >=3.0 has observed=True as default (can be problematic with categorical columns)
@@ -130,7 +145,7 @@ class HierarchicalResampler(Resampler):
         row_idxs = []
 
         def build_sample(
-            node: HierarchNode,
+            node: HierarchyNode,
             depth: int = 0,
         ) -> None:
             if not isinstance(node, dict):
@@ -160,7 +175,7 @@ class HierarchicalResampler(Resampler):
         idxs = np.concatenate(row_idxs)
 
         # Reset the index so it doesn't lead to problems down the line
-        return self._data_sample.iloc[idxs].reset_index(drop=True)  # ty:ignore[unresolved-attribute]
+        return self._data_sample.iloc[idxs].reset_index(drop=True)
 
     def with_data(
         self,
