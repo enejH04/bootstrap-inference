@@ -159,7 +159,8 @@ class HierarchicalResampler(Resampler):
         # Concatenate the sampled row indices
         idxs = np.concatenate(row_idxs)
 
-        return self._data_sample.iloc[idxs]  # ty:ignore[unresolved-attribute]
+        # Reset the index so it doesn't lead to problems down the line
+        return self._data_sample.iloc[idxs].reset_index(drop=True)  # ty:ignore[unresolved-attribute]
 
     def with_data(
         self,
