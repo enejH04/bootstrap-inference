@@ -107,8 +107,3 @@ def non_overlapping_block_resampler(request):
         np.arange(100),
         block_length=request.param,
     )
-
-
-@pytest.fixture
-def stationary_block_resampler():
-    return StationaryBlockResampler(np.arange(100), 7)
