@@ -3,6 +3,7 @@ from .double_bootstrap import (
     DoubleBootstrap,
 )
 from .resamplers import (
+    CircularBlockResampler,
     HierarchicalResampler,
     IIDResampler,
     MovingBlockResampler,
@@ -16,4 +17,5 @@ __all__ = [
     "IIDResampler",
     "HierarchicalResampler",
     "MovingBlockResampler",
+    "CircularBlockResampler",
 ]

@@ -55,10 +55,10 @@ def test_hierarchical_logic(hierarchical_resampler, hierarchical_data, rng):
         assert sampled_sizes[school] % original_sizes[school] == 0
 
 
-def test_moving_block_resampler_strategy(moving_block_resampler, rng):
-    block_length = moving_block_resampler._block_length
-    indices = moving_block_resampler._draw_indices(rng)
-    n = moving_block_resampler.n_observations
+def test_block_resampler_strategy(block_resampler, rng):
+    block_length = block_resampler._block_length
+    indices = block_resampler._draw_indices(rng)
+    n = block_resampler.n_observations
 
     # First check the untruncated part
     complete_blocks_len = (n // block_length) * block_length
@@ -66,7 +66,7 @@ def test_moving_block_resampler_strategy(moving_block_resampler, rng):
 
     blocks = clean_indices.reshape(-1, block_length)
 
-    intra_bloock_diffs = np.diff(blocks, axis=1)
+    intra_bloock_diffs = np.diff(blocks, axis=1) % n
 
     assert np.all(intra_bloock_diffs == 1), (
         "Elements within blocks are not sequential"
@@ -74,7 +74,7 @@ def test_moving_block_resampler_strategy(moving_block_resampler, rng):
 
     # Check remainder
     remainder = indices[complete_blocks_len:]
-    remaining_diffs = np.diff(remainder)
+    remaining_diffs = np.diff(remainder) % n
 
     if complete_blocks_len != n:
         assert np.all(remaining_diffs == 1), (

@@ -1,9 +1,12 @@
+from itertools import product
+
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import pytest
 
 from bootstrap_diagnostics import (
+    CircularBlockResampler,
     HierarchicalResampler,
     IIDResampler,
     MovingBlockResampler,
@@ -44,13 +47,17 @@ def rng():
     params=[
         pytest.param(
             lambda data: IIDResampler(data),
-            id="iid",
+            id="IIDResampler",
         ),
         pytest.param(
             lambda data: MovingBlockResampler(data, 3),
-            id="mb",
+            id="MovingBlockResampler",
         ),
-    ]
+        pytest.param(
+            lambda data: CircularBlockResampler(data, 3),
+            id="CircularBlockResampler",
+        ),
+    ],
 )
 def resampler(request, data):
     return request.param(data)
@@ -66,9 +73,16 @@ def hierarchical_resampler(hierarchical_data):
     )
 
 
-@pytest.fixture(params=[2, 5, 8, 13, 20])
-def moving_block_resampler(request, data):
-    return MovingBlockResampler(
-        data,
-        block_length=request.param,
-    )
+BLOCK_RESAMPLERS = [
+    MovingBlockResampler,
+    CircularBlockResampler,
+]
+BLOCK_LENGTHS = [2, 5, 8, 13, 20]
+
+
+@pytest.fixture(
+    params=list(product(BLOCK_RESAMPLERS, BLOCK_LENGTHS)),
+    ids=lambda p: f"{p[0].__name__}, l={p[1]}",
+)
+def block_resampler(request, data):
+    return request.param[0](data, block_length=request.param[1])
