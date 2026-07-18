@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from bootstrap_diagnostics import NonOverlappingBlockResampler
+
 
 def test_resample_preserves_shape(resampler, rng):
     sample = resampler.draw_sample(rng)
@@ -79,4 +81,25 @@ def test_block_resampler_strategy(block_resampler, rng):
     if complete_blocks_len != n:
         assert np.all(remaining_diffs == 1), (
             "Elements in the truncated block aren't sequential"
+        )
+
+
+def test_non_overlapping_block_strategy(non_overlapping_block_resampler, rng):
+    block_length = non_overlapping_block_resampler._block_length
+    indices = non_overlapping_block_resampler._draw_indices(rng)
+    n = non_overlapping_block_resampler.n_observations
+
+    complete_blocks_len = (n // block_length) * block_length
+
+    clean_indices = indices[:complete_blocks_len].reshape(-1, block_length)
+
+    # check that the starting points make sense -> multiple of block lengths
+    remainders = clean_indices[:, 0] % block_length
+    assert np.all(remainders == 0), (
+        "Starting points of the blocks aren't multiples of block length"
+    )
+
+    if complete_blocks_len < n:
+        assert indices[complete_blocks_len] % block_length == 0, (
+            "Starting points of the blocks aren't multiples of block length"
         )

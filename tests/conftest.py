@@ -92,3 +92,13 @@ BLOCK_LENGTHS = [2, 5, 8, 13, 20]
 )
 def block_resampler(request, data):
     return request.param[0](data, block_length=request.param[1])
+
+
+@pytest.fixture(
+    params=BLOCK_LENGTHS, ids=lambda p: f"NonOverlappingBlockResampler, l={p}"
+)
+def non_overlapping_block_resampler(request):
+    return NonOverlappingBlockResampler(
+        np.arange(100),
+        block_length=request.param,
+    )
