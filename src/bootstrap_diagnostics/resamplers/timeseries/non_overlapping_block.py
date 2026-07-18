@@ -11,7 +11,7 @@ class NonOverlappingBlockResampler(TimeSeriesBlockResampler):
 
         Given n observations and block length l, we have floor(n / l) possible starting points.
         We sample ceil(n / l) blocks with replacement by randomly choosing their starting indices
-        from the range [0 ... floor(n / l)] * l. Suppose we have sampled index i, then the sampled block
+        from the range [0 ... floor(n / l) - 1] * l. Suppose we have sampled index i, then the sampled block
         is of the form [i, i + 1, ..., i + l - 1].
 
 
