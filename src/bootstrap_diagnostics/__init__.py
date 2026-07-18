@@ -9,6 +9,7 @@ from .resamplers import (
     MovingBlockResampler,
     NonOverlappingBlockResampler,
     Resampler,
+    StationaryBlockResampler,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "MovingBlockResampler",
     "CircularBlockResampler",
     "NonOverlappingBlockResampler",
+    "StationaryBlockResampler",
 ]

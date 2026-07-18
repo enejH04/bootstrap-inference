@@ -11,6 +11,7 @@ from bootstrap_diagnostics import (
     IIDResampler,
     MovingBlockResampler,
     NonOverlappingBlockResampler,
+    StationaryBlockResampler,
 )
 
 
@@ -62,6 +63,10 @@ def rng():
             lambda data: NonOverlappingBlockResampler(data, 3),
             id="NonOverlappingBlockResampler",
         ),
+        pytest.param(
+            lambda data: StationaryBlockResampler(data, 3),
+            id="StationaryBlockResampler",
+        ),
     ],
 )
 def resampler(request, data):
@@ -102,3 +107,8 @@ def non_overlapping_block_resampler(request):
         np.arange(100),
         block_length=request.param,
     )
+
+
+@pytest.fixture
+def stationary_block_resampler():
+    return StationaryBlockResampler(np.arange(100), 7)

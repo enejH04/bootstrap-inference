@@ -5,6 +5,7 @@ from .timeseries import (
     CircularBlockResampler,
     MovingBlockResampler,
     NonOverlappingBlockResampler,
+    StationaryBlockResampler,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "MovingBlockResampler",
     "CircularBlockResampler",
     "NonOverlappingBlockResampler",
+    "StationaryBlockResampler",
 ]

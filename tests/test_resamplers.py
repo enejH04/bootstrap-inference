@@ -2,8 +2,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bootstrap_diagnostics import NonOverlappingBlockResampler
-
 
 def test_resample_preserves_shape(resampler, rng):
     sample = resampler.draw_sample(rng)
@@ -103,3 +101,26 @@ def test_non_overlapping_block_strategy(non_overlapping_block_resampler, rng):
         assert indices[complete_blocks_len] % block_length == 0, (
             "Starting points of the blocks aren't multiples of block length"
         )
+
+
+def test_stationary_block_strategy(stationary_block_resampler, rng):
+    block_length = stationary_block_resampler._block_length
+    n = stationary_block_resampler.n_observations
+
+    indices = stationary_block_resampler._draw_indices(rng)
+
+    diffs = np.diff(indices) % n
+
+    # Where new blocks were started (of course maybe we miss some but we want to check within block continuity)
+    boundary_jumps = np.where(diffs != 1)[0]
+
+    if len(boundary_jumps) > 0:
+        # Check from index 0 up to the first jump
+        assert np.all(diffs[: boundary_jumps[0]] == 1)
+
+        # Check all intermediate blocks between jumps
+        for i, start in enumerate(boundary_jumps[:-1]):
+            assert np.all(diffs[start + 1 : boundary_jumps[i + 1]] == 1)
+
+        # Check the final block from the last jump to the end of the array
+        assert np.all(diffs[boundary_jumps[-1] + 1 :] == 1)
