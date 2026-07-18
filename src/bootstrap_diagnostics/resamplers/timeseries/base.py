@@ -8,6 +8,21 @@ from ..base import Resampler
 
 
 class TimeSeriesBlockResampler(Resampler):
+    """
+    Abstract base class for block bootstrap resampling strategies for time series.
+
+    Parameters
+    ----------
+    block_length : int
+        The length of the blocks, that are resampled with replacement from the
+        original time series.
+
+    Raises
+    ------
+    ValueError
+        If ``block_length`` is less than 2 or greater than the number of observations.
+    """
+
     def __init__(
         self,
         data_sample: npt.NDArray | pd.DataFrame,
@@ -33,6 +48,7 @@ class TimeSeriesBlockResampler(Resampler):
 
     @property
     def n_observations(self) -> int:
+        """int: The total number of observations along the resampling axis."""
         return self._data_sample.shape[self._axis]
 
     def with_data(

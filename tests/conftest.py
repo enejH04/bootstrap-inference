@@ -3,7 +3,11 @@ import numpy.typing as npt
 import pandas as pd
 import pytest
 
-from bootstrap_diagnostics import HierarchicalResampler, IIDResampler
+from bootstrap_diagnostics import (
+    HierarchicalResampler,
+    IIDResampler,
+    MovingBlockResampler,
+)
 
 
 # Test with different array shapes
@@ -41,7 +45,11 @@ def rng():
         pytest.param(
             lambda data: IIDResampler(data),
             id="iid",
-        )
+        ),
+        pytest.param(
+            lambda data: MovingBlockResampler(data, 3),
+            id="mb",
+        ),
     ]
 )
 def resampler(request, data):
@@ -55,4 +63,12 @@ def hierarchical_resampler(hierarchical_data):
         hierarchical_data,
         hierarchy=[("school", True), ("classroom", False)],
         observation_replacement=False,
+    )
+
+
+@pytest.fixture(params=[2, 5, 8, 13, 20])
+def moving_block_resampler(request, data):
+    return MovingBlockResampler(
+        data,
+        block_length=request.param,
     )

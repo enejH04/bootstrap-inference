@@ -53,3 +53,30 @@ def test_hierarchical_logic(hierarchical_resampler, hierarchical_data, rng):
         # The number of students in the sampled school should be a multiple of the original
         # (if School A was drawn twice, it should have 3 * 2 = 6 rows).
         assert sampled_sizes[school] % original_sizes[school] == 0
+
+
+def test_moving_block_resampler_strategy(moving_block_resampler, rng):
+    block_length = moving_block_resampler._block_length
+    indices = moving_block_resampler._draw_indices(rng)
+    n = moving_block_resampler.n_observations
+
+    # First check the untruncated part
+    complete_blocks_len = (n // block_length) * block_length
+    clean_indices = indices[:complete_blocks_len]
+
+    blocks = clean_indices.reshape(-1, block_length)
+
+    intra_bloock_diffs = np.diff(blocks, axis=1)
+
+    assert np.all(intra_bloock_diffs == 1), (
+        "Elements within blocks are not sequential"
+    )
+
+    # Check remainder
+    remainder = indices[complete_blocks_len:]
+    remaining_diffs = np.diff(remainder)
+
+    if complete_blocks_len != n:
+        assert np.all(remaining_diffs == 1), (
+            "Elements in the truncated block aren't sequential"
+        )

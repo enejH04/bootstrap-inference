@@ -54,12 +54,7 @@ class Resampler(ABC):
     @property
     def data_sample(self) -> npt.NDArray | pd.DataFrame:
         """
-        The original dataset from which resamples are drawn.
-
-        Returns
-        -------
-        npt.NDArray | pd.DataFrame
-            The original dataset as a NumPy array.
+        npt.NDArray | pd.DataFrame : The original dataset from which resamples are drawn.
         """
         return self._data_sample
 
