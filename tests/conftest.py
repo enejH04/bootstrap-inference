@@ -10,6 +10,7 @@ from bootstrap_diagnostics import (
     HierarchicalResampler,
     IIDResampler,
     MovingBlockResampler,
+    NonOverlappingBlockResampler,
 )
 
 
@@ -57,6 +58,10 @@ def rng():
             lambda data: CircularBlockResampler(data, 3),
             id="CircularBlockResampler",
         ),
+        pytest.param(
+            lambda data: NonOverlappingBlockResampler(data, 3),
+            id="NonOverlappingBlockResampler",
+        ),
     ],
 )
 def resampler(request, data):
@@ -76,6 +81,7 @@ def hierarchical_resampler(hierarchical_data):
 BLOCK_RESAMPLERS = [
     MovingBlockResampler,
     CircularBlockResampler,
+    NonOverlappingBlockResampler,
 ]
 BLOCK_LENGTHS = [2, 5, 8, 13, 20]
 

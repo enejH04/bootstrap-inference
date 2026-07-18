@@ -1,7 +1,11 @@
 from .base import Resampler
 from .hierarchical import HierarchicalResampler
 from .iid import IIDResampler
-from .timeseries import CircularBlockResampler, MovingBlockResampler
+from .timeseries import (
+    CircularBlockResampler,
+    MovingBlockResampler,
+    NonOverlappingBlockResampler,
+)
 
 __all__ = [
     "Resampler",
@@ -9,4 +13,5 @@ __all__ = [
     "HierarchicalResampler",
     "MovingBlockResampler",
     "CircularBlockResampler",
+    "NonOverlappingBlockResampler",
 ]

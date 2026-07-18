@@ -7,6 +7,7 @@ from .resamplers import (
     HierarchicalResampler,
     IIDResampler,
     MovingBlockResampler,
+    NonOverlappingBlockResampler,
     Resampler,
 )
 
@@ -18,4 +19,5 @@ __all__ = [
     "HierarchicalResampler",
     "MovingBlockResampler",
     "CircularBlockResampler",
+    "NonOverlappingBlockResampler",
 ]
