@@ -15,7 +15,8 @@ class TimeSeriesBlockResampler(Resampler):
     ----------
     block_length : int
         The length of the blocks, that are resampled with replacement from the
-        original time series.
+        original time series. For the stationary block bootstrap, this represents
+        the expected block size.
 
     Raises
     ------
