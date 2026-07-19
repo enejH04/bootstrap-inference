@@ -46,8 +46,8 @@ class Bootstrap:
     """
     Bootstrap procedure.
 
-    Implements bootstrap variance and bias estimation. For confidence intervals
-    it implements double percentile and percentile bootstrap procedures.
+    Implements bootstrap variance, bias and confidence interval estimation.
+    For confidence intervals it implements double percentile and percentile bootstrap procedures.
 
     Note that the CIs for non-scalar statistics are component-wise and do not
     represent a joint confidence region.
@@ -94,6 +94,57 @@ class Bootstrap:
                 stacklevel=2,
             )
 
+    def bias(
+        self,
+        n_resamples: int = 200,
+        n_jobs: int = 1,
+        seed: int | None = None,
+    ) -> float | npt.NDArray:
+        """
+        Compute bootstrap bias estimate for the provided statistic.
+
+        Parameters
+        ----------
+        n_resamples : int, optional
+            Number of bootstrap resamples. Defaults to 200.
+        n_jobs: int, optional
+            Number of concurrent jobs used for the bootstrap procedure.
+            Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
+            Defaults to 1.
+        seed : int, optional
+            Seed for the random number genertion process. Defaults to None.
+
+        Returns
+        -------
+        float | npt.NDArray
+            The computed bootstrap bias estimate.
+
+        Raises
+        ------
+        ValueError
+            If ``n_resamples <= 0``.
+        """
+        if n_resamples <= 0:
+            raise ValueError("Number of resamples must be positive")
+
+        estimate = self._statistic(self._data_sample)
+
+        rng = np.random.default_rng(seed)
+
+        bootstrap_replicates = np.array(
+            Parallel(n_jobs=n_jobs)(
+                delayed(self._statistic)(self._resampler.draw_sample(rng))
+                for _ in range(n_resamples)
+            )
+        ).reshape(n_resamples, -1)
+
+        expectation = bootstrap_replicates.mean(axis=0)
+
+        if expectation.size == 1:
+            return expectation.item() - estimate
+
+        return expectation.reshape(np.shape(estimate)) - estimate
+
     def variance(
         self,
         n_resamples: int = 200,
@@ -128,7 +179,7 @@ class Bootstrap:
             raise ValueError("Number of resamples must be greater than 1")
 
         # Use the estimate to properly reshape the statistic
-        estimate = self._statistic(self._data_sample)
+        template = self._statistic(self._data_sample)
 
         rng = np.random.default_rng(seed)
 
@@ -142,7 +193,7 @@ class Bootstrap:
         # Unbiased variance estimate
         var = bootstrap_replicates.var(axis=0, ddof=1)
 
-        return var.item() if var.size == 1 else var.reshape(np.shape(estimate))
+        return var.item() if var.size == 1 else var.reshape(np.shape(template))
 
     def double_percentile_ci(
         self,
