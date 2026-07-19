@@ -1,6 +1,6 @@
-from .double_bootstrap import (
+from .bootstrap import (
+    Bootstrap,
     ConfidenceInterval,
-    DoubleBootstrap,
 )
 from .resamplers import (
     CircularBlockResampler,

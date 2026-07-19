@@ -42,12 +42,12 @@ class ConfidenceInterval:
         return f"estimate = {self.estimate}\nlower = {self.lower}\nupper = {self.upper}\nconfidence level = {self.confidence_level}, side = {self.side}"
 
 
-class DoubleBootstrap:
+class Bootstrap:
     """
-    Double bootstrap procedure.
+    Bootstrap procedure.
 
-    Implements double percentile and percentile bootstrap procedure for
-    confidence interval construction.
+    Implements bootstrap variance and bias estimation. For confidence intervals
+    it implements double percentile and percentile bootstrap procedures.
 
     Note that the CIs for non-scalar statistics are component-wise and do not
     represent a joint confidence region.
@@ -94,6 +94,56 @@ class DoubleBootstrap:
                 stacklevel=2,
             )
 
+    def variance(
+        self,
+        n_resamples: int = 200,
+        n_jobs: int = 1,
+        seed: int | None = None,
+    ) -> float | npt.NDArray:
+        """
+        Compute bootstrap variance estimate for the provided statistic.
+
+        Parameters
+        ----------
+        n_resamples : int, optional
+            Number of bootstrap resamples. Defaults to 200.
+        n_jobs: int, optional
+            Number of concurrent jobs used for the bootstrap procedure.
+            Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
+            Defaults to 1.
+        seed : int, optional
+            Seed for the random number genertion process. Defaults to None.
+
+        Returns
+        -------
+        float | npt.NDArray
+            The computed bootstrap variance estimate.
+
+        Raises
+        ------
+        ValueError
+            If ``n_resamples <= 1``.
+        """
+        if n_resamples <= 1:
+            raise ValueError("Number of resamples must be greater than 1")
+
+        # Use the estimate to properly reshape the statistic
+        estimate = self._statistic(self._data_sample)
+
+        rng = np.random.default_rng(seed)
+
+        bootstrap_replicates = np.array(
+            Parallel(n_jobs=n_jobs)(
+                delayed(self._statistic)(self._resampler.draw_sample(rng))
+                for _ in range(n_resamples)
+            )
+        ).reshape(n_resamples, -1)
+
+        # Unbiased variance estimate
+        var = bootstrap_replicates.var(axis=0, ddof=1)
+
+        return var.item() if var.size == 1 else var.reshape(np.shape(estimate))
+
     def double_percentile_ci(
         self,
         confidence_level: float = 0.95,
@@ -105,7 +155,7 @@ class DoubleBootstrap:
         seed: int | None = None,
     ) -> ConfidenceInterval:
         """
-        Compute a double percentile confidence interval of the sample data.
+        Compute a double percentile confidence interval for the provided statistic.
 
         Parameters
         ----------
@@ -279,19 +329,19 @@ class DoubleBootstrap:
 
         match side:
             case "two":
-                lower = DoubleBootstrap._quantile_per_component(
+                lower = Bootstrap._quantile_per_component(
                     l1_estimates, alpha / 2, q_est_method
                 )
-                upper = DoubleBootstrap._quantile_per_component(
+                upper = Bootstrap._quantile_per_component(
                     l1_estimates, 1 - alpha / 2, q_est_method
                 )
             case "upper":
                 lower = np.full_like(estimate, -np.inf)
-                upper = DoubleBootstrap._quantile_per_component(
+                upper = Bootstrap._quantile_per_component(
                     l1_estimates, 1 - alpha, q_est_method
                 )
             case "lower":
-                lower = DoubleBootstrap._quantile_per_component(
+                lower = Bootstrap._quantile_per_component(
                     l1_estimates, alpha, q_est_method
                 )
                 upper = np.full_like(estimate, np.inf)
@@ -363,7 +413,7 @@ class DoubleBootstrap:
 
         # Delegate the tasks
         results = Parallel(n_jobs=n_jobs)(
-            delayed(DoubleBootstrap._process_b1)(
+            delayed(Bootstrap._process_b1)(
                 estimate,
                 self._resampler.draw_sample(rng_outer),
                 self._resampler,
@@ -397,10 +447,10 @@ class DoubleBootstrap:
                     axis=0,
                     method=q_est_method,
                 )
-                lower = DoubleBootstrap._quantile_per_component(
+                lower = Bootstrap._quantile_per_component(
                     l1_estimates, alpha_lower_db, q_est_method
                 )
-                upper = DoubleBootstrap._quantile_per_component(
+                upper = Bootstrap._quantile_per_component(
                     l1_estimates, alpha_upper_db, q_est_method
                 )
             case "upper":
@@ -411,7 +461,7 @@ class DoubleBootstrap:
                     method=q_est_method,
                 )
                 lower = np.full_like(estimate, -np.inf)
-                upper = DoubleBootstrap._quantile_per_component(
+                upper = Bootstrap._quantile_per_component(
                     l1_estimates, alpha_db, q_est_method
                 )
             case "lower":
@@ -421,7 +471,7 @@ class DoubleBootstrap:
                     axis=0,
                     method=q_est_method,
                 )
-                lower = DoubleBootstrap._quantile_per_component(
+                lower = Bootstrap._quantile_per_component(
                     l1_estimates, alpha_db, q_est_method
                 )
                 upper = np.full_like(estimate, np.inf)
