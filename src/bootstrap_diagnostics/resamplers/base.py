@@ -38,11 +38,12 @@ class Resampler(ABC):
         axis: int = 0,
     ) -> None:
         self._data_sample = data_sample
-        self._axis = axis
+        # Normalize axis
+        self._axis = axis % data_sample.ndim
 
-        # Allow numpy negative axis indexing, but check that the axis
+        # Check that the axis
         # is valid for the given data sample
-        if not (-self._data_sample.ndim <= self._axis < self._data_sample.ndim):
+        if not (self._axis < self._data_sample.ndim):
             raise ValueError(
                 f"Invalid axis {self._axis} for data sample with {self._data_sample.ndim} dimensions"
             )
