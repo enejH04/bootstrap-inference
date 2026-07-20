@@ -1,3 +1,4 @@
+import inspect
 import warnings
 from dataclasses import dataclass
 from typing import Callable, Literal
@@ -57,9 +58,13 @@ class Bootstrap:
 
     statistic : Callable[..., npt.NDArray[np.float64] | float]
         The function used to calculate the statistic of interest. Returns a NumPy array or float.
-
     resampler : Resampler
         The ``Resampler`` that implements the desired resampling procedure.
+    vectorized: bool
+        Whether the statistic can be applied to the resampled data in a vectorized manner. Defaults
+        to False.
+    axis: int
+        Axis along which the vectorized statistic will be evaluated on resamples.
 
     Raises
     ------
@@ -68,12 +73,16 @@ class Bootstrap:
 
         - If ``statistic`` is not callable.
         - If ``resampler`` is not an instance of Resampler.
+        - The ``axis`` argument is invalid for the resamples
+        drawn from ``resampler``.
     """
 
     def __init__(
         self,
         statistic: Callable[..., npt.NDArray[np.float64] | float],
         resampler: Resampler,
+        vectorized: bool = False,
+        axis: int = 0,
     ) -> None:
         if not isinstance(resampler, Resampler):
             raise TypeError("resampler must be an instance of Resampler")
@@ -82,9 +91,17 @@ class Bootstrap:
 
         self._statistic = statistic
         self._resampler = resampler
-
         # Store the original data sample from the resampler
         self._data_sample = resampler.data_sample
+
+        self._vectorized = vectorized
+        # Axis along which the vectorized statistic will be evaluated
+        self._axis = axis % self._data_sample.ndim
+
+        if not (self._axis < self._data_sample.ndim):
+            raise ValueError(
+                f"Invalid axis {self._axis} for data sample with {self._data_sample.ndim} dimensions"
+            )
 
         if isinstance(self._data_sample, pd.DataFrame):
             warnings.warn(
@@ -300,7 +317,7 @@ class Bootstrap:
         n_jobs: int, optional
             Number of concurrent jobs used for the bootstrap procedure.
             Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
-            Defaults to 1.
+            Defaults to 1. Will be ignored if ``vectorized`` is true.
         seed : int, optional
             Seed for the random number genertion process. Defaults to None.
 
@@ -366,16 +383,22 @@ class Bootstrap:
         ConfidenceInterval
             The computed bootstrap confidence interval.
         """
-        estimate = self._statistic(self._data_sample)
 
-        # The arguments to the statistic are evaluated before being passed
-        # to another process
-        results = Parallel(n_jobs=n_jobs)(
-            delayed(self._statistic)(self._resampler.draw_sample(rng))
-            for _ in range(b_resamples)
-        )
+        if self._vectorized and hasattr(self._resampler, "draw_batch_sample"):
+            estimate = self._statistic(self._data_sample, axis=self._axis)
+            batch = self._resampler.draw_batch_sample(b_resamples, rng)  # ty:ignore[call-non-callable]
+            # Evaluate the statistic over the batch axis
+            results = self._statistic(batch, axis=self._axis + 1)
+        else:
+            estimate = self._statistic(self._data_sample)
+            # The arguments to the statistic are evaluated before being passed
+            # to another process
+            results = Parallel(n_jobs=n_jobs)(
+                delayed(self._statistic)(self._resampler.draw_sample(rng))
+                for _ in range(b_resamples)
+            )
 
-        l1_estimates = np.array(results)
+        l1_estimates = np.asarray(results)
         alpha = 1 - confidence_level
 
         match side:
