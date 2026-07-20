@@ -70,7 +70,6 @@ class Bootstrap:
     ------
     TypeError
         If any of the following conditions are met:
-
         - If ``statistic`` is not callable.
         - If ``resampler`` is not an instance of Resampler.
         - The ``axis`` argument is invalid for the resamples
@@ -505,6 +504,8 @@ class Bootstrap:
                 self._statistic,
                 b2,
                 ss_l2[i],
+                self._vectorized,
+                self._axis,
             )
             for i in range(b1)
         )
@@ -577,6 +578,8 @@ class Bootstrap:
         statistic: Callable[..., npt.NDArray[np.float64] | float],
         b2: int,
         ss: np.random.SeedSequence,
+        vectorized: bool,
+        axis: int,
     ) -> tuple[npt.NDArray[np.float64] | float, npt.NDArray[np.float64]]:
         """
         Internal method that computes the double bootstrap procedure for a single
@@ -599,6 +602,11 @@ class Bootstrap:
         ss: np.random.SeedSequence
             A seed sequence object which allows for a reproducible way to set the
             initial state for independent and very probably non-overlapping BitGenerators.
+        vectorized: bool
+            Whether the statistic can be applied to the resampled data in a vectorized manner. Defaults
+            to False.
+        axis: int
+            Axis along which the vectorized statistic will be evaluated on resamples.
 
         Returns
         -------
@@ -609,15 +617,33 @@ class Bootstrap:
         # Instantiate a local RNG that is unique to this process
         local_rng = np.random.default_rng(ss)
 
-        l1_estimate = statistic(data_sample)
-
         # Initialize the level 2 resampler with the current level 1 resample as the new "original" dataset
         l2_resampler = resampler.with_data(data_sample)
 
-        # Compute the level 2 estimates
-        l2_estimates = np.array(
-            [statistic(l2_resampler.draw_sample(local_rng)) for _ in range(b2)]
-        )
+        if vectorized:
+            l1_estimate = statistic(data_sample, axis=axis)
+
+            if hasattr(l2_resampler, "draw_batch_sample"):
+                l2_resample = l2_resampler.draw_batch_sample(b2, local_rng)  # ty:ignore[call-non-callable]
+                l2_estimates = statistic(l2_resample, axis=axis + 1)
+            else:
+                l2_estimates = np.array(
+                    [
+                        statistic(
+                            l2_resampler.draw_sample(local_rng), axis=axis
+                        )
+                        for _ in range(b2)
+                    ]
+                )
+        else:
+            l1_estimate = statistic(data_sample)
+
+            l2_estimates = np.array(
+                [
+                    statistic(l2_resampler.draw_sample(local_rng))
+                    for _ in range(b2)
+                ]
+            )
 
         # How many level 2 estimates are less than or equal to the original estimate?
         # CDF evaluation G^*(\hat{\theta})
