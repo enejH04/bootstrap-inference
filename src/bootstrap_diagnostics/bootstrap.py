@@ -383,12 +383,23 @@ class Bootstrap:
         ConfidenceInterval
             The computed bootstrap confidence interval.
         """
-
-        if self._vectorized and hasattr(self._resampler, "draw_batch_sample"):
+        if self._vectorized:
+            # Can add axis argument to the statistic
             estimate = self._statistic(self._data_sample, axis=self._axis)
-            batch = self._resampler.draw_batch_sample(b_resamples, rng)  # ty:ignore[call-non-callable]
-            # Evaluate the statistic over the batch axis
-            results = self._statistic(batch, axis=self._axis + 1)
+
+            if hasattr(self._resampler, "draw_batch_sample"):
+                batch = self._resampler.draw_batch_sample(b_resamples, rng)  # ty:ignore[call-non-callable]
+                # Evaluate the statistic over the batch axis
+                results = self._statistic(batch, axis=self._axis + 1)
+            else:
+                # The arguments to the statistic are evaluated before being passed
+                # to another process
+                results = Parallel(n_jobs=n_jobs)(
+                    delayed(self._statistic)(
+                        self._resampler.draw_sample(rng), axis=self._axis
+                    )
+                    for _ in range(b_resamples)
+                )
         else:
             estimate = self._statistic(self._data_sample)
             # The arguments to the statistic are evaluated before being passed
