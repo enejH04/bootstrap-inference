@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import pytest
 
 
 def test_resample_preserves_shape(resampler, rng):
