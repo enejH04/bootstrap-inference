@@ -36,8 +36,8 @@ class ConfidenceInterval:
 
     # Allow both scalar and array confidence intervals
     # (e.g. regression coefficients for multiple linear regression)
-    lower: npt.NDArray[np.float64] | float
-    upper: npt.NDArray[np.float64] | float
+    lower: npt.NDArray | float
+    upper: npt.NDArray | float
 
     def __str__(self) -> str:
         return f"estimate = {self.estimate}\nlower = {self.lower}\nupper = {self.upper}\nconfidence level = {self.confidence_level}, side = {self.side}"
@@ -56,7 +56,7 @@ class Bootstrap:
     Parameters
     ----------
 
-    statistic : Callable[..., npt.NDArray[np.float64] | float]
+    statistic : Callable[..., npt.NDArray | float]
         The function used to calculate the statistic of interest. Returns a NumPy array or float.
     resampler : Resampler
         The ``Resampler`` that implements the desired resampling procedure.
@@ -615,15 +615,15 @@ class Bootstrap:
 
         Parameters
         ----------
-        estimate : npt.NDArray[np.float64] | float
+        estimate : npt.NDArray | float
             The estimate of the statistic computed from the original sample.
         data_sample: npt.ArrayLike
             The data sample used for sampling the second level bootstrap datasets.
         resampler: Resampler
             The resampler used to construct the second level bootstrap resampler.
-        statistic : Callable[..., npt.NDArray[np.float64] | float]
+        statistic : Callable[..., npt.NDArray | float]
             The function used to calculate the statistic of interest.
-            Must follow the signature `f(data) -> npt.NDArray[np.float64] | float`.
+            Must follow the signature `f(data) -> npt.NDArray | float`.
         b2 : int
             Number of bootstrap resamples in the second level for calibration
             of the percentile method.
@@ -638,7 +638,7 @@ class Bootstrap:
 
         Returns
         -------
-        tuple[npt.NDArray[np.float64] | float, npt.NDArray[np.float64]]
+        tuple[npt.NDArray | float, npt.NDArray]
             The level 1 bootstrap estimate computed from the resample and G^*(hat{theta})
         """
 
@@ -697,7 +697,7 @@ class Bootstrap:
 
     @staticmethod
     def _evaluate(
-        statistic: Callable[..., npt.NDArray[np.float64] | float],
+        statistic: Callable[..., npt.NDArray | float],
         data: npt.NDArray | pd.DataFrame,
         vectorized: bool,
         axis: int,
@@ -708,10 +708,10 @@ class Bootstrap:
 
     @staticmethod
     def _quantile_per_component(
-        data: npt.NDArray[np.float64],
-        quantile_levels: npt.NDArray[np.float64] | float,
+        data: npt.NDArray,
+        quantile_levels: npt.NDArray | float,
         q_est_method: QuantileEstimationMethod,
-    ) -> npt.NDArray[np.float64]:
+    ) -> npt.NDArray:
         """
         Internal method that computes the per component quantiles of the given data.
 
@@ -720,16 +720,16 @@ class Bootstrap:
 
         Parameters
         ----------
-        data: npt.NDArray[np.float64]
+        data: npt.NDArray
             Data we want to compute per component quantiles for.
-        quantile levels: npt.NDArray[np.float64] | float
+        quantile levels: npt.NDArray | float
             Quantile levels for each component. Need to have the same shape as ``data[i]``.
         q_est_method: QuantileEstimationMethod
             Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
 
         Returns
         -------
-        npt.NDArray[np.float64]
+        npt.NDArray
             Per component quantiles of the data.
         """
         # Create a (B1, n_components) vector
