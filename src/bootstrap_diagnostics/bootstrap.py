@@ -238,13 +238,15 @@ class Bootstrap:
 
         rng = np.random.default_rng(seed)
 
-        estimate = np.asarray(self._evaluate_statistic(self._data_sample))
+        estimate_shape = np.asarray(
+            self._evaluate_statistic(self._data_sample)
+        ).shape
 
         bootstrap_replicates = self._bootstrap_replicates(
             n_resamples,
             rng=rng,
             n_jobs=n_jobs,
-            estimate_shape=estimate.shape,
+            estimate_shape=estimate_shape,
         )
 
         # Unbiased variance estimate (in terms of Monte Carlo estimate)
