@@ -1,9 +1,37 @@
 from abc import ABC, abstractmethod
-from typing import Any, Self
+from typing import Any, Protocol, Self, runtime_checkable
 
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+from numpy.lib.array_utils import normalize_axis_index
+
+
+# So we can use isinstance check
+@runtime_checkable
+class BatchResampler(Protocol):
+    def draw_batch_sample(
+        self, b: int, rng: np.random.Generator
+    ) -> npt.NDArray:
+        """
+        Generate a batch bootstrap resample of the data with shape (b, *data_sample.shape).
+
+        To ensure that the results are fully reproducible, use the provided
+        NumPy random number generator for all random operations.
+
+        Parameters
+        ----------
+        b : int
+            Batch size.
+        rng : np.random.Generator
+            NumPy random number generator.
+
+        Returns
+        -------
+        npt.NDArray
+            A batch of resampled datasets of size (b, *data_sample.shape).
+        """
+        ...
 
 
 class Resampler(ABC):
@@ -38,19 +66,20 @@ class Resampler(ABC):
         axis: int = 0,
     ) -> None:
         self._data_sample = data_sample
-        # Normalize axis
-        self._axis = axis % data_sample.ndim
+        # Normalize axis using internal NumPy functions
+        self._axis = normalize_axis_index(axis, self._data_sample.ndim)
 
-        # Check that the axis
-        # is valid for the given data sample
-        if not (self._axis < self._data_sample.ndim):
-            raise ValueError(
-                f"Invalid axis {self._axis} for data sample with {self._data_sample.ndim} dimensions"
-            )
         if self._data_sample.shape[self._axis] == 0:
             raise ValueError(
                 "Data sample must have at least one observation along the resampling axis"
             )
+
+    @property
+    def axis(self) -> int:
+        """
+        int : The axis along which resamples are drawn
+        """
+        return self._axis
 
     @property
     def data_sample(self) -> npt.NDArray | pd.DataFrame:
@@ -58,6 +87,13 @@ class Resampler(ABC):
         npt.NDArray | pd.DataFrame : The original dataset from which resamples are drawn.
         """
         return self._data_sample
+
+    @property
+    def supports_batching(self) -> bool:
+        """
+        bool : Whether the resampler supports batch resampling
+        """
+        return False
 
     def draw_sample(
         self,

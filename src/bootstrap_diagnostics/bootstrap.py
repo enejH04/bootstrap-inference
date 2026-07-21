@@ -1,4 +1,3 @@
-import inspect
 import warnings
 from dataclasses import dataclass
 from typing import Callable, Literal
@@ -7,8 +6,9 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 from joblib import Parallel, delayed
+from numpy.lib.array_utils import normalize_axis_index
 
-from .resamplers import Resampler
+from .resamplers import BatchResampler, Resampler
 
 # Define this type for better readability and static type checking.
 QuantileEstimationMethod = Literal[
@@ -61,10 +61,11 @@ class Bootstrap:
     resampler : Resampler
         The ``Resampler`` that implements the desired resampling procedure.
     vectorized: bool
-        Whether the statistic can be applied to the resampled data in a vectorized manner. Defaults
+        Whether the statistic should be applied to the resampled data in a vectorized manner. Defaults
         to False.
-    axis: int
-        Axis along which the vectorized statistic will be evaluated on resamples.
+    axis: int | None
+        Axis along which the vectorized statistic will be evaluated on resamples. If it's None,
+        it uses the resamplers internal axis used for resampling. Defaults to None.
 
     Raises
     ------
@@ -81,7 +82,7 @@ class Bootstrap:
         statistic: Callable[..., npt.NDArray[np.float64] | float],
         resampler: Resampler,
         vectorized: bool = False,
-        axis: int = 0,
+        axis: int | None = None,
     ) -> None:
         if not isinstance(resampler, Resampler):
             raise TypeError("resampler must be an instance of Resampler")
@@ -95,12 +96,12 @@ class Bootstrap:
 
         self._vectorized = vectorized
         # Axis along which the vectorized statistic will be evaluated
-        self._axis = axis % self._data_sample.ndim
-
-        if not (self._axis < self._data_sample.ndim):
-            raise ValueError(
-                f"Invalid axis {self._axis} for data sample with {self._data_sample.ndim} dimensions"
-            )
+        # If no axis is provided, use the axis from the resampler
+        self._axis = (
+            normalize_axis_index(axis, self._data_sample.ndim)
+            if axis is not None
+            else resampler.axis
+        )
 
         if isinstance(self._data_sample, pd.DataFrame):
             warnings.warn(
@@ -109,6 +110,50 @@ class Bootstrap:
                 UserWarning,
                 stacklevel=2,
             )
+
+    def _evaluate_statistic(
+        self, data: npt.NDArray | pd.DataFrame
+    ) -> npt.NDArray | float:
+        if self._vectorized:
+            return self._statistic(data, axis=self._axis)
+        return self._statistic(data)
+
+    def _bootstrap_replicates(
+        self,
+        n_resamples: int,
+        rng: np.random.Generator,
+        n_jobs: int,
+        estimate_shape: tuple[int, ...],
+    ) -> npt.NDArray:
+
+        expected_shape = (n_resamples, *estimate_shape)
+
+        if (
+            self._vectorized
+            and self._resampler.supports_batching
+            and isinstance(self._resampler, BatchResampler)
+        ):
+            batch_resample = self._resampler.draw_batch_sample(n_resamples, rng)
+            # Add 1 since we add an extra batch dimension at the beginning
+            bootstrap_replicates = np.asarray(
+                self._statistic(batch_resample, axis=self._axis + 1)
+            )
+        else:
+            bootstrap_replicates = np.asarray(
+                Parallel(n_jobs=n_jobs)(
+                    delayed(self._evaluate_statistic)(
+                        self._resampler.draw_sample(rng)
+                    )
+                    for _ in range(n_resamples)
+                )
+            )
+
+        if bootstrap_replicates.shape != expected_shape:
+            raise ValueError(
+                f"Statistic returned bootstrap replicates of shape {bootstrap_replicates.shape}; expected shape was {expected_shape}"
+            )
+
+        return bootstrap_replicates
 
     def bias(
         self,
@@ -143,23 +188,20 @@ class Bootstrap:
         if n_resamples <= 0:
             raise ValueError("Number of resamples must be positive")
 
-        estimate = self._statistic(self._data_sample)
-
         rng = np.random.default_rng(seed)
 
-        bootstrap_replicates = np.array(
-            Parallel(n_jobs=n_jobs)(
-                delayed(self._statistic)(self._resampler.draw_sample(rng))
-                for _ in range(n_resamples)
-            )
-        ).reshape(n_resamples, -1)
+        estimate = np.asarray(self._evaluate_statistic(self._data_sample))
 
-        expectation = bootstrap_replicates.mean(axis=0)
+        bootstrap_replicates = self._bootstrap_replicates(
+            n_resamples,
+            rng=rng,
+            n_jobs=n_jobs,
+            estimate_shape=estimate.shape,
+        )
 
-        if expectation.size == 1:
-            return expectation.item() - estimate
+        bias = bootstrap_replicates.mean(axis=0) - estimate
 
-        return expectation.reshape(np.shape(estimate)) - estimate
+        return bias.item() if bias.ndim == 0 else bias
 
     def variance(
         self,
@@ -194,22 +236,21 @@ class Bootstrap:
         if n_resamples <= 1:
             raise ValueError("Number of resamples must be greater than 1")
 
-        # Use the estimate to properly reshape the statistic
-        template = self._statistic(self._data_sample)
-
         rng = np.random.default_rng(seed)
 
-        bootstrap_replicates = np.array(
-            Parallel(n_jobs=n_jobs)(
-                delayed(self._statistic)(self._resampler.draw_sample(rng))
-                for _ in range(n_resamples)
-            )
-        ).reshape(n_resamples, -1)
+        estimate = np.asarray(self._evaluate_statistic(self._data_sample))
 
-        # Unbiased variance estimate
+        bootstrap_replicates = self._bootstrap_replicates(
+            n_resamples,
+            rng=rng,
+            n_jobs=n_jobs,
+            estimate_shape=estimate.shape,
+        )
+
+        # Unbiased variance estimate (in terms of Monte Carlo estimate)
         var = bootstrap_replicates.var(axis=0, ddof=1)
 
-        return var.item() if var.size == 1 else var.reshape(np.shape(template))
+        return var.item() if var.ndim == 0 else var
 
     def double_percentile_ci(
         self,
@@ -481,7 +522,11 @@ class Bootstrap:
         """
 
         # Evaluate the statistic on the original sample (needed for calibration)
-        estimate = self._statistic(self._data_sample)
+        estimate = (
+            self._statistic(self._data_sample, axis=self._axis)
+            if self._vectorized
+            else self._statistic(self._data_sample)
+        )
 
         # Spawn a sequence of seed sequences used for seeding independent bit-generators
         # We need B1 + 1 of them since we also have to have an rng for the top level
@@ -518,8 +563,8 @@ class Bootstrap:
         # For example, if the statistic is a vector of length k, the shape of
         # l1_estimates will be (B1, k) (basically stack them on top of each other)
         l1_estimates, cdf_evals = zip(*results)
-        l1_estimates = np.array(l1_estimates)
-        cdf_evals = np.array(cdf_evals)
+        l1_estimates = np.asarray(l1_estimates)
+        cdf_evals = np.asarray(cdf_evals)
 
         # Quantile estimation method
         alpha = 1 - confidence_level
@@ -669,8 +714,8 @@ class Bootstrap:
         ----------
         data: npt.NDArray[np.float64]
             Data we want to compute per component quantiles for.
-        tail_probabilities: npt.NDArray[np.float64] | float
-            Tail probabilities for each component. Need to have the same shape as ``data[i]``.
+        quantile levels: npt.NDArray[np.float64] | float
+            Quantile levels for each component. Need to have the same shape as ``data[i]``.
         q_est_method: QuantileEstimationMethod
             Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
 

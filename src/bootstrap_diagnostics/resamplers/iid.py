@@ -24,8 +24,8 @@ class IIDResampler(Resampler):
     ) -> npt.NDArray:
         """
         Generate indices used for batch resampling. Note that this returns a
-        `(b, n_observations)` dimensional array where each column represents the
-        index of the element at the dimension defined by the provided axis.
+        `(b, n_observations)` dimensional array where each row represents one
+        resample.
 
         Parameters
         ----------
@@ -47,6 +47,10 @@ class IIDResampler(Resampler):
             low=0, high=n_observations, size=(b, n_observations)
         )
 
+    @property
+    def supports_batching(self) -> bool:
+        return isinstance(self._data_sample, np.ndarray)
+
     def draw_batch_sample(
         self, b: int, rng: np.random.Generator
     ) -> npt.NDArray:
@@ -67,7 +71,19 @@ class IIDResampler(Resampler):
         -------
         npt.NDArray
             A batch resample of shape `(b, data_sample.shape)`.
+
+        Raises
+        ------
+        ValueError
+            If `b <= 0`.
+        TypeError
+            If the data sample isn't a NumPy array
         """
+        if b <= 0:
+            raise ValueError(f"Expected batch size at least 1, got {b}")
+        if not isinstance(self._data_sample, np.ndarray):
+            raise TypeError("Batch resampling only works with NumPy arrays")
+
         batch_indices = self._draw_batch_indices(b, rng)
         resample = np.take(
             self._data_sample,

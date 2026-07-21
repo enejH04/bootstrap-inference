@@ -1,4 +1,4 @@
-from .base import Resampler
+from .base import BatchResampler, Resampler
 from .hierarchical import HierarchicalResampler
 from .iid import IIDResampler
 from .timeseries import (
@@ -10,6 +10,7 @@ from .timeseries import (
 
 __all__ = [
     "Resampler",
+    "BatchResampler",
     "IIDResampler",
     "HierarchicalResampler",
     "MovingBlockResampler",
