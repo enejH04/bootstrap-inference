@@ -94,7 +94,8 @@ class HierarchicalResampler(Resampler):
         Construct the hierarchy tree from the input DataFrame.
 
         Internal nodes correspond to grouping levels, while leaf nodes contain the
-        row indices of the observations belonging to each terminal group.
+        row indices of the observations belonging to each terminal group. Note that
+        rows whose hierarchy cols include missing values are excluded.
 
         Returns
         -------
@@ -135,7 +136,8 @@ class HierarchicalResampler(Resampler):
         exactly once according to the provided strategy.
 
         Once a terminal group is reached, observations are either retained or
-        resampled with replacement depending on ``observation_replacement``.
+        resampled with replacement depending on ``observation_replacement``. Note
+        that this might produce a sample of a different size than the original.
 
         Parameters
         ----------

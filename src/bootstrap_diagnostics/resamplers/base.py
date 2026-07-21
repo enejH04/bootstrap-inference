@@ -43,8 +43,8 @@ class Resampler(ABC):
     data_sample : npt.ArrayLike | pd.DataFrame
         The input dataset used for resampling.
     axis : int, optional
-        The axis along which new resamples are drawn from the dataset.
-        Defaults to 0.
+        The axis along which new resamples are drawn from the dataset. For Pandas
+        DataFrames, only row resampling (``axis = 0``) is supported. Defaults to 0.
 
     Raises
     ------
@@ -52,6 +52,7 @@ class Resampler(ABC):
         If any of the following conditions are met:
         - The input ``data_sample`` is empty.
         - The ``axis`` argument is invalid for the given ``data_sample``.
+        - If ``axis != 0`` and ``data_sample`` is a Pandas DataFrame.
 
     Notes
     -----
@@ -72,6 +73,10 @@ class Resampler(ABC):
         if self._data_sample.shape[self._axis] == 0:
             raise ValueError(
                 "Data sample must have at least one observation along the resampling axis"
+            )
+        if isinstance(self._data_sample, pd.DataFrame) and self._axis != 0:
+            raise ValueError(
+                f"For Pandas DataFrames, only row resampling (axis = 0) is supported; got {self._axis}"
             )
 
     @property
@@ -118,6 +123,7 @@ class Resampler(ABC):
         indices = self._draw_indices(rng)
 
         # Use the sampled indices to create the resampled dataset
+        # For dataframe we resample the rows
         if isinstance(self._data_sample, pd.DataFrame):
             return self._data_sample.iloc[indices].reset_index(drop=True)
 

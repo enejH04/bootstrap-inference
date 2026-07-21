@@ -13,7 +13,7 @@ from .resamplers import (
 )
 
 __all__ = [
-    "DoubleBootstrap",
+    "Bootstrap",
     "ConfidenceInterval",
     "Resampler",
     "IIDResampler",

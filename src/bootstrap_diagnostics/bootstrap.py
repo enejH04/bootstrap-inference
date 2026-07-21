@@ -79,7 +79,7 @@ class Bootstrap:
 
     def __init__(
         self,
-        statistic: Callable[..., npt.NDArray[np.float64] | float],
+        statistic: Callable[..., npt.NDArray | float],
         resampler: Resampler,
         vectorized: bool = False,
         axis: int | None = None,
@@ -114,9 +114,12 @@ class Bootstrap:
     def _evaluate_statistic(
         self, data: npt.NDArray | pd.DataFrame
     ) -> npt.NDArray | float:
-        if self._vectorized:
-            return self._statistic(data, axis=self._axis)
-        return self._statistic(data)
+        return Bootstrap._evaluate(
+            statistic=self._statistic,
+            data=data,
+            vectorized=self._vectorized,
+            axis=self._axis,
+        )
 
     def _bootstrap_replicates(
         self,
@@ -171,7 +174,7 @@ class Bootstrap:
         n_jobs: int, optional
             Number of concurrent jobs used for the bootstrap procedure.
             Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
-            Defaults to 1.
+            When using batching, the parameter is ignored. Defaults to 1.
         seed : int, optional
             Seed for the random number genertion process. Defaults to None.
 
@@ -219,7 +222,7 @@ class Bootstrap:
         n_jobs: int, optional
             Number of concurrent jobs used for the bootstrap procedure.
             Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
-            Defaults to 1.
+            When using batching, the parameter is ignored. Defaults to 1.
         seed : int, optional
             Seed for the random number genertion process. Defaults to None.
 
@@ -303,14 +306,8 @@ class Bootstrap:
 
         # Use this function as a wrapper to make adding new methods easier and
         # decoupled from the validation logic
-        if not 0 < confidence_level < 1:
-            raise ValueError(
-                f"Confidence_level should be (0, 1); got {confidence_level}"
-            )
-        if side not in {"two", "lower", "upper"}:
-            raise ValueError(
-                f"Side must be 'two', 'lower' or 'upper'; got {side}"
-            )
+        Bootstrap._validate_ci_args(confidence_level, side)
+
         if b1_resamples <= 0 or b2_resamples <= 0:
             raise ValueError("Number of resamples must be positive")
 
@@ -359,7 +356,8 @@ class Bootstrap:
         n_jobs: int, optional
             Number of concurrent jobs used for the bootstrap procedure.
             Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
-            Defaults to 1. Will be ignored if ``vectorized`` is true.
+            Defaults to 1. Will be ignored if ``vectorized`` is true and resampler allows
+            batch resampling.
         seed : int, optional
             Seed for the random number genertion process. Defaults to None.
 
@@ -371,17 +369,10 @@ class Bootstrap:
         Raises
         ------
         ValueError
-            If ``confidence_level`` is not in (0, 1), ``side`` is invalid
-            or ``n_resamples <= 0``.
+            if ``n_resamples <= 0``.
         """
-        if not 0 < confidence_level < 1:
-            raise ValueError(
-                f"Confidence_level should be (0, 1); got {confidence_level}"
-            )
-        if side not in {"two", "lower", "upper"}:
-            raise ValueError(
-                f"Side must be 'two', 'lower' or 'upper'; got {side}"
-            )
+        Bootstrap._validate_ci_args(confidence_level, side)
+
         if b_resamples <= 0:
             raise ValueError("Number of resamples must be positive")
 
@@ -425,53 +416,39 @@ class Bootstrap:
         ConfidenceInterval
             The computed bootstrap confidence interval.
         """
-        if self._vectorized:
-            # Can add axis argument to the statistic
-            estimate = self._statistic(self._data_sample, axis=self._axis)
+        estimate = np.asarray(self._evaluate_statistic(self._data_sample))
 
-            if hasattr(self._resampler, "draw_batch_sample"):
-                batch = self._resampler.draw_batch_sample(b_resamples, rng)  # ty:ignore[call-non-callable]
-                # Evaluate the statistic over the batch axis
-                results = self._statistic(batch, axis=self._axis + 1)
-            else:
-                # The arguments to the statistic are evaluated before being passed
-                # to another process
-                results = Parallel(n_jobs=n_jobs)(
-                    delayed(self._statistic)(
-                        self._resampler.draw_sample(rng), axis=self._axis
-                    )
-                    for _ in range(b_resamples)
-                )
-        else:
-            estimate = self._statistic(self._data_sample)
-            # The arguments to the statistic are evaluated before being passed
-            # to another process
-            results = Parallel(n_jobs=n_jobs)(
-                delayed(self._statistic)(self._resampler.draw_sample(rng))
-                for _ in range(b_resamples)
-            )
-
-        l1_estimates = np.asarray(results)
+        bootstrap_replicates = self._bootstrap_replicates(
+            b_resamples, rng=rng, n_jobs=n_jobs, estimate_shape=estimate.shape
+        )
         alpha = 1 - confidence_level
 
         match side:
             case "two":
                 lower = Bootstrap._quantile_per_component(
-                    l1_estimates, alpha / 2, q_est_method
+                    bootstrap_replicates, alpha / 2, q_est_method
                 )
                 upper = Bootstrap._quantile_per_component(
-                    l1_estimates, 1 - alpha / 2, q_est_method
+                    bootstrap_replicates, 1 - alpha / 2, q_est_method
                 )
             case "upper":
-                lower = np.full_like(estimate, -np.inf)
+                lower = np.full_like(
+                    estimate,
+                    -np.inf,
+                    dtype=np.float64,
+                )
                 upper = Bootstrap._quantile_per_component(
-                    l1_estimates, 1 - alpha, q_est_method
+                    bootstrap_replicates, 1 - alpha, q_est_method
                 )
             case "lower":
                 lower = Bootstrap._quantile_per_component(
-                    l1_estimates, alpha, q_est_method
+                    bootstrap_replicates, alpha, q_est_method
                 )
-                upper = np.full_like(estimate, np.inf)
+                upper = np.full_like(
+                    estimate,
+                    np.inf,
+                    dtype=np.float64,
+                )
 
         return ConfidenceInterval(
             estimate,
@@ -524,11 +501,7 @@ class Bootstrap:
         """
 
         # Evaluate the statistic on the original sample (needed for calibration)
-        estimate = (
-            self._statistic(self._data_sample, axis=self._axis)
-            if self._vectorized
-            else self._statistic(self._data_sample)
-        )
+        estimate = np.asarray(self._evaluate_statistic(self._data_sample))
 
         # Spawn a sequence of seed sequences used for seeding independent bit-generators
         # We need B1 + 1 of them since we also have to have an rng for the top level
@@ -593,7 +566,11 @@ class Bootstrap:
                     axis=0,
                     method=q_est_method,
                 )
-                lower = np.full_like(estimate, -np.inf)
+                lower = np.full_like(
+                    estimate,
+                    -np.inf,
+                    dtype=np.float64,
+                )
                 upper = Bootstrap._quantile_per_component(
                     l1_estimates, alpha_db, q_est_method
                 )
@@ -607,7 +584,11 @@ class Bootstrap:
                 lower = Bootstrap._quantile_per_component(
                     l1_estimates, alpha_db, q_est_method
                 )
-                upper = np.full_like(estimate, np.inf)
+                upper = np.full_like(
+                    estimate,
+                    np.inf,
+                    dtype=np.float64,
+                )
 
         return ConfidenceInterval(
             estimate,
@@ -619,15 +600,15 @@ class Bootstrap:
 
     @staticmethod
     def _process_b1(
-        estimate: npt.NDArray[np.float64] | float,
+        estimate: npt.NDArray,
         data_sample: npt.NDArray | pd.DataFrame,
         resampler: Resampler,
-        statistic: Callable[..., npt.NDArray[np.float64] | float],
+        statistic: Callable[..., npt.NDArray | float],
         b2: int,
         ss: np.random.SeedSequence,
         vectorized: bool,
         axis: int,
-    ) -> tuple[npt.NDArray[np.float64] | float, npt.NDArray[np.float64]]:
+    ) -> tuple[npt.NDArray, npt.NDArray]:
         """
         Internal method that computes the double bootstrap procedure for a single
         first level resample.
@@ -664,32 +645,46 @@ class Bootstrap:
         # Instantiate a local RNG that is unique to this process
         local_rng = np.random.default_rng(ss)
 
+        l1_estimate = np.asarray(
+            Bootstrap._evaluate(
+                statistic, data_sample, vectorized=vectorized, axis=axis
+            )
+        )
+
+        if l1_estimate.shape != estimate.shape:
+            raise ValueError(
+                f"Statistic returned level 1 estimate of shape {l1_estimate.shape}; expected shape was {estimate.shape}"
+            )
+
+        expected_shape = (b2, *l1_estimate.shape)
+
         # Initialize the level 2 resampler with the current level 1 resample as the new "original" dataset
         l2_resampler = resampler.with_data(data_sample)
 
-        if vectorized:
-            l1_estimate = statistic(data_sample, axis=axis)
-
-            if hasattr(l2_resampler, "draw_batch_sample"):
-                l2_resample = l2_resampler.draw_batch_sample(b2, local_rng)  # ty:ignore[call-non-callable]
-                l2_estimates = statistic(l2_resample, axis=axis + 1)
-            else:
-                l2_estimates = np.array(
-                    [
-                        statistic(
-                            l2_resampler.draw_sample(local_rng), axis=axis
-                        )
-                        for _ in range(b2)
-                    ]
-                )
+        if (
+            vectorized
+            and l2_resampler.supports_batching
+            and isinstance(l2_resampler, BatchResampler)
+        ):
+            batch_resample = l2_resampler.draw_batch_sample(b2, local_rng)
+            # Add 1 since we add an extra batch dimension at the beginning
+            l2_estimates = np.asarray(statistic(batch_resample, axis=axis + 1))
         else:
-            l1_estimate = statistic(data_sample)
-
-            l2_estimates = np.array(
+            l2_estimates = np.asarray(
                 [
-                    statistic(l2_resampler.draw_sample(local_rng))
+                    Bootstrap._evaluate(
+                        statistic,
+                        l2_resampler.draw_sample(local_rng),
+                        vectorized=vectorized,
+                        axis=axis,
+                    )
                     for _ in range(b2)
                 ]
+            )
+
+        if l2_estimates.shape != expected_shape:
+            raise ValueError(
+                f"Statistic returned bootstrap replicates of shape {l2_estimates.shape}; expected shape was {expected_shape}"
             )
 
         # How many level 2 estimates are less than or equal to the original estimate?
@@ -699,6 +694,17 @@ class Bootstrap:
         cdf_eval = np.mean(l2_estimates <= estimate, axis=0)
 
         return l1_estimate, cdf_eval
+
+    @staticmethod
+    def _evaluate(
+        statistic: Callable[..., npt.NDArray[np.float64] | float],
+        data: npt.NDArray | pd.DataFrame,
+        vectorized: bool,
+        axis: int,
+    ) -> npt.NDArray | float:
+        if vectorized:
+            return statistic(data, axis=axis)
+        return statistic(data)
 
     @staticmethod
     def _quantile_per_component(
@@ -749,3 +755,33 @@ class Bootstrap:
         ).reshape(data.shape[1:])
 
         return results
+
+    @staticmethod
+    def _validate_ci_args(
+        confidence_level: float,
+        side: Literal["two", "lower", "upper"],
+    ) -> None:
+        """
+        Validate confidence interval arguments.
+
+        Parameters
+        ----------
+        confidence_level : float, optional
+            The confidence level of the interval. Defaults to 0.95.
+        side : {"two", "lower", "upper"}, optional
+            The sideness of the interval. "two" for two-sided and "lower",
+            "upper" for one-sided. Defaults to "two".
+
+        Raises
+        ------
+        ValueError
+            If ``confidence_level`` is not in (0, 1) or ``side`` is invalid.
+        """
+        if not 0 < confidence_level < 1:
+            raise ValueError(
+                f"Confidence_level should be (0, 1); got {confidence_level}"
+            )
+        if side not in {"two", "lower", "upper"}:
+            raise ValueError(
+                f"Side must be 'two', 'lower' or 'upper'; got {side}"
+            )
