@@ -1,3 +1,4 @@
+# ty: ignore
 # Copied from: https://github.com/zrimseku/Bootstrap-CI-analysis/blob/main/generators.py
 import itertools
 
