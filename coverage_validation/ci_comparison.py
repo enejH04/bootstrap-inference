@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from generators import DGP, DGPBiNorm, DGPExp, DGPNorm
+from generators import DGP, DGPBiNorm, DGPExp, DGPLogNorm, DGPNorm
 
 from bootstrap_diagnostics import Bootstrap, IIDResampler
 
@@ -131,6 +131,7 @@ if __name__ == "__main__":
         DGPNorm(seed, 0, 1),
         DGPExp(seed, 1),
         DGPBiNorm(seed, np.array([1, 1]), np.array([[2, 0.5], [0.5, 1]])),
+        DGPLogNorm(seed, 0, 1),
     ]
 
     statistics = [np.mean, np.median, corr]
