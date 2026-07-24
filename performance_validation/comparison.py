@@ -58,10 +58,10 @@ def aggregate_simulation_results(method, true_value, lower, upper):
         "two_sided_coverage": np.mean(
             two_sided_valid & (lower <= true_value) & (true_value <= upper),
         ),
-        "mean_two_sided_length": np.mean(
+        "mean_two_sided_length_conditional": np.mean(
             upper[two_sided_valid] - lower[two_sided_valid]
         ),
-        "median_two_sided_length": np.median(
+        "median_two_sided_length_conditional": np.median(
             upper[two_sided_valid] - lower[two_sided_valid]
         ),
         "lower_bound_success_rate": np.mean(lower_valid),
