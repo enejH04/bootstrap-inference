@@ -54,7 +54,7 @@ def aggregate_simulation_results(method, true_value, lower, upper):
             (lower[two_sided_valid] <= true_value)
             & (true_value <= upper[two_sided_valid])
         ),
-        # Not conditional on success of bounds
+        # Not conditional on success of bounds - they can be infinite
         "two_sided_coverage": np.mean(
             two_sided_valid & (lower <= true_value) & (true_value <= upper),
         ),
