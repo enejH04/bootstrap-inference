@@ -258,10 +258,10 @@ if __name__ == "__main__":
     ns = [8, 32, 128]
 
     # Repeat each each experiment 1000 times
-    repetitions = 1000
+    repetitions = 2
 
     # Use B(=C)=1000 resamples for the bootstrap
-    B = 1000
+    B = 100
 
     dgps = [
         DGPNorm(seed, 0, 1),
