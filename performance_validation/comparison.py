@@ -15,7 +15,11 @@ BASE_SEED = 42
 
 
 # Seed the independent Numba RNG used by bootstrap_ci's JIT
-# implementation of the nested bootstrap.
+# implementation of the nested bootstrap. Numba should also generate the same
+# outer resamples as the percentile version (setting the same seed in Numba has
+# the same behaviour as setting the same seed in NumPy) -> important since
+# double bootstrap will resample the same indices for the outer resamples
+# as the percentile one (bootstrap_ci only).
 @njit
 def seed_numba(seed):
     np.random.seed(seed)
