@@ -62,6 +62,7 @@ performance-validation = [
     { name = "bootstrap-ci" },
     { name = "ipykernel" },
     { name = "matplotlib" },
+    { name = "numba" },
 ]
 
 [package.metadata]
@@ -80,6 +81,7 @@ performance-validation = [
     { name = "bootstrap-ci", specifier = ">=0.0.1" },
     { name = "ipykernel", specifier = ">=7.2.0" },
     { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "numba", specifier = ">=0.66.0" },
 ]
 
 [[package]]

@@ -5,9 +5,20 @@ import bootstrap_ci as boot
 import numpy as np
 import pandas as pd
 from generators import DGP, DGPBiNorm, DGPExp, DGPLogNorm, DGPNorm
+from numba import njit
 
 # Our library
 from bootstrap_diagnostics import Bootstrap, IIDResampler
+
+# Base seed for seed sequence for repetitions
+BASE_SEED = 42
+
+
+# Seed the independent Numba RNG used by bootstrap_ci's JIT
+# implementation of the nested bootstrap.
+@njit
+def seed_numba(seed):
+    np.random.seed(seed)
 
 
 # NOTE: bootstrap might fail to produce valid CIs for pearson correlation for
@@ -36,50 +47,33 @@ def corr(data):
     return np.corrcoef(data, rowvar=False)[0, 1]
 
 
-def aggregate_simulation_results(method, true_value, lower, upper):
-    lower_valid = np.isfinite(lower)
-    upper_valid = np.isfinite(upper)
-    two_sided_valid = lower_valid & upper_valid & (lower <= upper)
+def make_simulation_results(method, lower, upper, seeds):
+    # We have the same replication_ids for the same samples for both libraries
+    df = pd.DataFrame(
+        {
+            "method": method,
+            # We need this to match libraries between resampled datasets for each experiment
+            "replication_id": np.arange(len(lower)),
+            "ci_lower": lower,
+            "ci_upper": upper,
+            # The seed used when constructing bootstrap CIs
+            "bootstrap_seed": seeds,
+        }
+    )
 
-    # Only use the valid intervals. Results are conditional on successful bounds
-    # so they may not be averages over all the repetitions.
-    return {
-        "method": method,
-        "nominal_1_sided_coverage": 0.975,
-        "nominal_2_sided_coverage": 0.95,
-        # We only care about finite bounds for one sided intervals
-        "lower_coverage_conditional": np.mean(lower[lower_valid] <= true_value),
-        "upper_coverage_conditional": np.mean(true_value <= upper[upper_valid]),
-        "two_sided_coverage_conditional": np.mean(
-            (lower[two_sided_valid] <= true_value)
-            & (true_value <= upper[two_sided_valid])
-        ),
-        # Not conditional on success of bounds - they can be infinite
-        "two_sided_coverage": np.mean(
-            two_sided_valid & (lower <= true_value) & (true_value <= upper),
-        ),
-        "mean_two_sided_length_conditional": np.mean(
-            upper[two_sided_valid] - lower[two_sided_valid]
-        ),
-        "median_two_sided_length_conditional": np.median(
-            upper[two_sided_valid] - lower[two_sided_valid]
-        ),
-        "lower_bound_success_rate": np.mean(lower_valid),
-        "upper_bound_success_rate": np.mean(upper_valid),
-        "two_sided_success_rate": np.mean(two_sided_valid),
-    }
+    return df
 
 
-def run_bootstrap_cis_our(dgp, statistic, B, n, repetitions):
+def run_bootstrap_cis_our(samples, statistic, B, seeds):
+    repetitions = len(samples)
+
     pb_upper_endpoints = np.empty(repetitions)
     pb_lower_endpoints = np.empty(repetitions)
 
     db_upper_endpoints = np.empty(repetitions)
     db_lower_endpoints = np.empty(repetitions)
 
-    samples = dgp.sample(nr_samples=repetitions, sample_size=n)
-
-    for i, sample in enumerate(samples):
+    for i, (sample, seed) in enumerate(zip(samples, seeds, strict=True)):
         resampler = IIDResampler(sample)
         boot = Bootstrap(statistic, resampler, vectorized=True)
 
@@ -88,7 +82,8 @@ def run_bootstrap_cis_our(dgp, statistic, B, n, repetitions):
             side="two",
             b_resamples=B,
             n_jobs=-1,
-            seed=i,
+            seed=seed,
+            q_est_method="median_unbiased",
         )
 
         db_ci = boot.double_percentile_ci(
@@ -97,7 +92,8 @@ def run_bootstrap_cis_our(dgp, statistic, B, n, repetitions):
             b1_resamples=B,
             b2_resamples=B,
             n_jobs=-1,
-            seed=i,
+            seed=seed,
+            q_est_method="median_unbiased",
         )
 
         pb_upper_endpoints[i] = pb_ci.upper
@@ -105,46 +101,36 @@ def run_bootstrap_cis_our(dgp, statistic, B, n, repetitions):
         db_upper_endpoints[i] = db_ci.upper
         db_lower_endpoints[i] = db_ci.lower
 
-    # We have to be careful with batched_corr
-    statistic_name = statistic.__name__
-    true_value_name = (
-        "corr" if statistic_name == "batched_corr" else statistic_name
-    )
-    true_value = dgp.get_true_value(true_value_name)
+    results = [
+        make_simulation_results(
+            method="percentile",
+            lower=pb_lower_endpoints,
+            upper=pb_upper_endpoints,
+            seeds=seeds,
+        ),
+        make_simulation_results(
+            method="double",
+            lower=db_lower_endpoints,
+            upper=db_upper_endpoints,
+            seeds=seeds,
+        ),
+    ]
 
-    results = []
-
-    for method, lower, upper in [
-        ("percentile", pb_lower_endpoints, pb_upper_endpoints),
-        ("double", db_lower_endpoints, db_upper_endpoints),
-    ]:
-        results.append(
-            aggregate_simulation_results(
-                method,
-                true_value,
-                lower,
-                upper,
-            )
-        )
-
-    return results
+    # Form a DataFrame from both data frames by stacking them on top of each
+    # other
+    return pd.concat(results, ignore_index=True)
 
 
-def run_bootstrap_cis_ref(dgp, statistic, B, n, repetitions):
+def run_bootstrap_cis_ref(samples, statistic, B, seeds):
+    repetitions = len(samples)
+
     pb_upper_endpoints = np.empty(repetitions)
     pb_lower_endpoints = np.empty(repetitions)
 
     db_upper_endpoints = np.empty(repetitions)
     db_lower_endpoints = np.empty(repetitions)
 
-    samples = dgp.sample(nr_samples=repetitions, sample_size=n)
-
-    for i, sample in enumerate(samples):
-        # Note that there might be some problems with reproducibility while
-        # explicitly using jit or using nr_bootstrap_samples >= 500 or n >= 100
-        # for the double bootstrap.  Even if use_jit=False for nr_bootstrap_samples >= 500 or n >= 100,
-        # the library will use jit for the inner loop -> that's why percentile is reproducible and double
-        # isn't in the pilot runs.
+    for i, (sample, seed) in enumerate(zip(samples, seeds, strict=True)):
         bs = boot.Bootstrap(sample, statistic, use_jit=True)
 
         pb_ci = bs.ci(
@@ -152,15 +138,22 @@ def run_bootstrap_cis_ref(dgp, statistic, B, n, repetitions):
             side="one",
             method="percentile",
             nr_bootstrap_samples=B,
-            seed=i,
+            seed=seed,
+            quantile_type="median_unbiased",
         )
 
+        # Recreate the Bootstrap object so we evaluate the statistic again on
+        # the outside resamples - prevent using cached percentile state
+        bs = boot.Bootstrap(sample, statistic, use_jit=True)
+
+        seed_numba(seed)
         db_ci = bs.ci(
             coverages=[0.025, 0.975],
             side="one",
             method="double",
             nr_bootstrap_samples=B,
-            seed=i,
+            seed=seed,
+            quantile_type="median_unbiased",
         )
 
         pb_upper_endpoints[i] = pb_ci[1]
@@ -169,81 +162,85 @@ def run_bootstrap_cis_ref(dgp, statistic, B, n, repetitions):
         db_upper_endpoints[i] = db_ci[1]
         db_lower_endpoints[i] = db_ci[0]
 
-    true_value = dgp.get_true_value(statistic.__name__)
+    results = [
+        make_simulation_results(
+            method="percentile",
+            lower=pb_lower_endpoints,
+            upper=pb_upper_endpoints,
+            seeds=seeds,
+        ),
+        make_simulation_results(
+            method="double",
+            lower=db_lower_endpoints,
+            upper=db_upper_endpoints,
+            seeds=seeds,
+        ),
+    ]
 
-    results = []
-
-    for method, lower, upper in [
-        ("percentile", pb_lower_endpoints, pb_upper_endpoints),
-        ("double", db_lower_endpoints, db_upper_endpoints),
-    ]:
-        results.append(
-            aggregate_simulation_results(
-                method,
-                true_value,
-                lower,
-                upper,
-            )
-        )
-
-    return results
+    return pd.concat(results, ignore_index=True)
 
 
-def run(dgps, ns, statistics, B, repetitions, our=True):
-    if our:
-        results_folder = Path(__file__).resolve().parent / "results_our"
-        output_path = results_folder / "results_our.csv"
-    else:
-        results_folder = Path(__file__).resolve().parent / "results_ref"
-        output_path = results_folder / "results_ref.csv"
+def run_paired_experiment(dgps, statistics, ns, B, repetitions):
+    # Join results from both libraries into a single CSV
+    results_folder = Path(__file__).resolve().parent / "results"
 
     results_folder.mkdir(parents=True, exist_ok=True)
 
-    # Delete existing file
+    output_path = results_folder / "results.csv"
+
     if output_path.exists():
         output_path.unlink()
 
+    # Use seed sequences for better reproducibility
+    ss = np.random.SeedSequence(BASE_SEED)
+    replication_sequences = ss.spawn(repetitions)
+    seeds = [
+        s.generate_state(1, dtype=np.uint32).item()
+        for s in replication_sequences
+    ]
+
     for dgp in dgps:
-        for statistic in statistics:
-            # Special case - only evaluate correlation for bivariate normal
-            is_corr = statistic.__name__ in ("corr", "batched_corr")
-            if is_corr != isinstance(dgp, DGPBiNorm):
+        for stat_name, (stat_our, stat_ref) in statistics.items():
+            is_corr = stat_name == "corr"
+
+            # We only use correlation and bivariate normal in combination with each other
+            if isinstance(dgp, DGPBiNorm) != is_corr:
                 continue
 
             for n in ns:
                 print(
-                    f"Currently doing: dgp={dgp.describe()}, statistic={statistic.__name__ if not is_corr else 'corr'}, n={n}"
+                    f"Currently evaluating: dgp={dgp.describe()}, statistic={stat_ref.__name__}, n={n}"
                 )
 
-                if our:
-                    result = run_bootstrap_cis_our(
-                        dgp,
-                        statistic,
-                        B,
-                        n,
-                        repetitions,
-                    )
-                else:
-                    result = run_bootstrap_cis_ref(
-                        dgp,
-                        statistic,
-                        B,
-                        n,
-                        repetitions,
-                    )
+                # Sample in batch so both libraries get the same samples
+                samples = dgp.sample(sample_size=n, nr_samples=repetitions)
+                # stat_ref is the safest to use since it doesn't include batch_corr
+                true_value = dgp.get_true_value(stat_name)
 
-                result_df = pd.DataFrame(result)
+                results_our = run_bootstrap_cis_our(samples, stat_our, B, seeds)
+                results_ref = run_bootstrap_cis_ref(samples, stat_ref, B, seeds)
 
-                result_df["n"] = n
-                result_df["dgp"] = dgp.describe()
-                result_df["statistic"] = (
-                    statistic.__name__
-                    if statistic.__name__ != "batched_corr"
-                    else "corr"
+                # Mark the results with library indices
+                results_our["library"] = "our"
+                results_ref["library"] = "ref"
+
+                df_joined = pd.concat(
+                    [results_our, results_ref], ignore_index=True
                 )
-                result_df["B"] = B
-                result_df["repetitions"] = repetitions
-                result_df.to_csv(
+
+                assert len(df_joined) == 4 * repetitions, (
+                    f"Expected data frame of length {4 * repetitions}; got {len(df_joined)}"
+                )
+
+                df_joined["dgp"] = dgp.describe()
+                df_joined["statistic"] = stat_name
+                df_joined["n"] = n
+                df_joined["B"] = B
+                df_joined["true_param_value"] = true_value
+                df_joined["nominal_1_sided_coverage"] = 0.975
+                df_joined["nominal_2_sided_coverage"] = 0.95
+
+                df_joined.to_csv(
                     output_path,
                     header=not output_path.exists(),
                     mode="a",
@@ -266,34 +263,25 @@ if __name__ == "__main__":
     # Use B(=C)=1000 resamples for the bootstrap
     B = 1000
 
-    dgps_our = [
+    dgps = [
         DGPNorm(seed, 0, 1),
         DGPExp(seed, 1),
         DGPBiNorm(seed, np.array([1, 1]), np.array([[2, 0.5], [0.5, 1]])),
         DGPLogNorm(seed, 0, 1),
     ]
 
-    dgps_new = [
-        DGPNorm(seed, 0, 1),
-        DGPExp(seed, 1),
-        DGPBiNorm(seed, np.array([1, 1]), np.array([[2, 0.5], [0.5, 1]])),
-        DGPLogNorm(seed, 0, 1),
-    ]
+    # statistic_name -> our_stat, ref_stat
+    statistics = {
+        "mean": (np.mean, np.mean),
+        "median": (np.median, np.median),
+        "corr": (batched_corr, corr),
+    }
 
-    # Statistics for our library (we use batched correlation since we support vectorization)
-    statistics_our = [np.mean, np.median, batched_corr]
-
-    # Statistics for the reference library (use non-batched correlation)
-    statistics_ref = [
-        np.mean,
-        np.median,
-        corr,
-    ]
-
-    # Get results for our library
-    print("Running our library")
-    run(dgps_our, ns, statistics_our, B, repetitions, our=True)
-
-    # Get results for the reference library
-    print("Running reference library")
-    run(dgps_new, ns, statistics_ref, B, repetitions, our=False)
+    # Run the whole experiment together so we guarantee the same external samples
+    run_paired_experiment(
+        dgps,
+        statistics,
+        ns,
+        B,
+        repetitions,
+    )
