@@ -96,7 +96,7 @@ plot <- ggplot(coverage, aes(
     ))
   ) +
   scale_y_discrete(
-    labels = \(x) gsub("\\.", " ", x)
+    labels = \(x) gsub("\\.", " - ", x)
   ) +
   labs(
     colour = "Velikost vzorca",
