@@ -16,3 +16,10 @@ wheels/
 
 # OS specific files
 .DS_Store
+.Rproj.user
+
+# RStudio specific files
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
