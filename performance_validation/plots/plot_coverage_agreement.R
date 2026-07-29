@@ -9,7 +9,7 @@ coverage_summary <- read.csv(file.path(base_dir, "results_coverage_summary.csv")
 
 # Convert the coverage summary from a wide to a long table (in order for ggplot
 # to be able to use coverage_type to create one panel per type)
-coverage_long <- coverage_summary %>%
+coverage_long <- coverage_summary |>
   pivot_longer(
     cols = c(
       lower_coverage_our,
@@ -23,13 +23,13 @@ coverage_long <- coverage_summary %>%
   # Define capture groups
   names_pattern = "(lower|upper|two_sided)_coverage_(our|ref)",
   values_to = "coverage"
-) %>%
+) |>
   pivot_wider(
     names_from = library,
     values_from = coverage
   )
 
-coverage_double <- coverage_long %>% filter(method == "double")
+coverage_double <- coverage_long |> filter(method == "double")
 
 # factor tells R that a column represents categories with a defined set and
 # order. Important for plotting in the desired order
@@ -50,8 +50,7 @@ coverage_agreement_plot <- ggplot(
   ) +
   geom_point(
     size = 2.5,
-    alpha = 0.6,
-    colour = "steelblue"
+    alpha = 0.5,
   ) + facet_wrap(
     ~coverage_type,
     labeller = as_labeller(c(
@@ -62,16 +61,15 @@ coverage_agreement_plot <- ggplot(
   ) +
   coord_equal(xlim = c(0.8, 1), ylim = c(0.8, 1)) +
   labs(
-    x = "Verjetnost pokritja referenčne knjižnice",
-    y = "Verjetnost pokritja naše knjižnice",
+    x = "Verjetnost pokritja referenčne implementacije",
+    y = "Verjetnost pokritja naše implementacije",
   ) +
-  theme_bw(
-    base_size = 10,
-    base_family = "Helvetica"
+  theme_minimal(
+    base_size = 12,
   ) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 12),
+    strip.text = element_text(size = 12, face = "bold", hjust = 0),
   )
 
 output_dir <- "figures"
