@@ -50,7 +50,7 @@ class HierarchicalResampler(Resampler):
         If ``hierarchy`` is empty.
         If all columns in ``hierarchy`` aren't in the ``data_sample``.
     TypeError
-        If ``data_sample`` is not a pandas DataFrame.
+        If ``data_sample`` is not a Pandas DataFrame.
     """
 
     def __init__(
@@ -60,7 +60,7 @@ class HierarchicalResampler(Resampler):
         observation_replacement: bool = False,
     ) -> None:
         if not isinstance(data_sample, pd.DataFrame):
-            raise TypeError("HierarchicalResampler requires a pandas DataFrame")
+            raise TypeError("HierarchicalResampler requires a Pandas DataFrame")
         if data_sample.empty:
             raise ValueError("data_sample should not be empty")
 
@@ -99,7 +99,7 @@ class HierarchicalResampler(Resampler):
 
         Returns
         -------
-        HierarchNode
+        HierarchyNode
             Root node of the hierarchy tree.
         """
         root = {}
@@ -107,7 +107,7 @@ class HierarchicalResampler(Resampler):
         # Pandas >=3.0 has observed=True as default (can be problematic with categorical columns)
         grouped_data = self._data_sample.groupby(
             list(self._hierarchy_cols), sort=False, observed=True
-        ).groups
+        ).indices
 
         for keys, idx in grouped_data.items():
             # Traverse the tree
@@ -120,7 +120,7 @@ class HierarchicalResampler(Resampler):
             for key in keys[:-1]:
                 node = node.setdefault(key, {})
 
-            node[keys[-1]] = idx.to_numpy()
+            node[keys[-1]] = idx
 
         return root
 
