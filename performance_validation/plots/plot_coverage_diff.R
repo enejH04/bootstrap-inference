@@ -88,7 +88,7 @@ plot <- ggplot(coverage, aes(
     position = ggstance::position_dodgev(
       height = 0.5
     ),
-    size = 0.25
+    size = 0.35
   ) +
   facet_wrap(
     ~ bound,
@@ -129,11 +129,12 @@ plot <- ggplot(coverage, aes(
     legend.direction = "horizontal",
     legend.title = element_text(size = 6),
     legend.text = element_text(size = 6),
-    legend.margin = margin(t = -8)
+    legend.margin = margin(t = -8),
+    legend.key.spacing = grid::unit(1, "mm")
   ) +
   guides(
     colour = guide_legend(
-      override.aes = list(size = 0.5)
+      override.aes = list(size = 1.0)
     )
   )
 
