@@ -67,24 +67,28 @@ plot <- ggplot(coverage, aes(
   # Use percentages
   x = estimate * 100,
   y = id
-  )
-) +
-  geom_stripes() +
+  )) +
+  geom_stripes(
+    even = "#80808018",
+    odd = "#FFFFFF00"
+  ) +
   geom_vline(
     xintercept = 0,
     linetype = "solid",
-    linewidth = 0.5,
+    linewidth = 0.3,
     colour = "black"
   ) +
   geom_effect(
     aes(
       xmin = CI_low * 100,
       xmax = CI_high * 100,
-      colour = n
+      colour = n,
+      shape = n
     ),
     position = ggstance::position_dodgev(
       height = 0.5
-    )
+    ),
+    size = 0.25
   ) +
   facet_wrap(
     ~ bound,
@@ -100,19 +104,65 @@ plot <- ggplot(coverage, aes(
   ) +
   labs(
     colour = "Velikost vzorca",
+    shape = "Velikost vzorca",
     x = "Razlika v pokritju v odstotnih točkah (naša - referenčna)",
     y = NULL
   ) +
-  theme_forest(base_size = 12) +
-    theme(
-    strip.background = element_blank(),
-    strip.text = element_text(size = 12)
+  theme_forest() +
+  theme(
+    # These text settings seem to work well
+    text = element_text(
+      size = 6,
+      family = "Helvetica"
+    ),
+    
+    axis.text.x = element_text(size = 6),
+    axis.text.y = element_text(size = 6),
+    axis.title.x = element_text(size = 6),
+    
+    strip.text = element_text(
+      size = 6,
+      face = "bold"
+    ),
+    
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.title = element_text(size = 6),
+    legend.text = element_text(size = 6),
+  ) +
+  guides(
+    colour = guide_legend(
+      override.aes = list(size = 0.5)
+    )
   )
+
+
+# Dimensions for the thesis
+aspect_ratio <- 16 / 12 
+pt_to_mm <- 0.35146
+column_w_pts <- 353.40038
+
+plot_w_mm <- column_w_pts * pt_to_mm
+plot_h_mm <- plot_w_mm / aspect_ratio
 
 output_dir <- "figures"
 
+# Save figure on mac without rendering issues
 ggsave(
   filename = file.path(output_dir, "coverage_diff_CI.pdf"),
-  device = cairo_pdf,
   plot = plot,
+  width = plot_w_mm,
+  height = plot_h_mm,
+  units = "mm",
+  device = function(filename, width, height, ...) {
+    grDevices::quartz(
+      file = filename,
+      type = "pdf",
+      width = width,
+      height = height,
+      family = "Helvetica"
+    )
+  }
 )
+
+
