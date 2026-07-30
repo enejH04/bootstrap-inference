@@ -129,6 +129,7 @@ plot <- ggplot(coverage, aes(
     legend.direction = "horizontal",
     legend.title = element_text(size = 6),
     legend.text = element_text(size = 6),
+    legend.margin = margin(t = -8)
   ) +
   guides(
     colour = guide_legend(
