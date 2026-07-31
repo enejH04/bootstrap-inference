@@ -1,4 +1,4 @@
-from .base import BatchResampler, Resampler
+from .base import BatchResampler, NonparametricResampler, Resampler
 from .hierarchical import HierarchicalResampler
 from .iid import IIDResampler
 from .timeseries import (

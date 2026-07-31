@@ -4,10 +4,10 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from ..base import Resampler
+from ..base import NonparametricResampler
 
 
-class TimeSeriesBlockResampler(Resampler):
+class TimeSeriesBlockResampler(NonparametricResampler):
     """
     Abstract base class for block bootstrap resampling strategies for time series.
 

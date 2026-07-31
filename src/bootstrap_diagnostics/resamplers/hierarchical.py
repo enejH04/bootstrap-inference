@@ -4,13 +4,13 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from .base import Resampler
+from .base import NonparametricResampler
 
 # The node in the hierarchy tree
 HierarchyNode = dict[Any, "HierarchyNode"] | npt.NDArray
 
 
-class HierarchicalResampler(Resampler):
+class HierarchicalResampler(NonparametricResampler):
     """
     Resampler for hierarchical data.
 

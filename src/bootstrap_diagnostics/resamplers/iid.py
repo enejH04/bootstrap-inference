@@ -4,10 +4,10 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from .base import Resampler
+from .base import NonparametricResampler
 
 
-class IIDResampler(Resampler):
+class IIDResampler(NonparametricResampler):
     """
     Resampler that draws new samples independently and identically distributed (IID)
     from the original dataset.
