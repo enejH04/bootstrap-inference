@@ -99,6 +99,7 @@ plot <- ggplot(coverage, aes(
       two_sided = "Dvostranski interval"
     ))
   ) +
+  xlim(-2, 2) +
   scale_y_discrete(
     labels = \(x) gsub("\\.", " - ", x)
   ) +
