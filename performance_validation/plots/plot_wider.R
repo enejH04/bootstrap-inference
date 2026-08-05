@@ -54,7 +54,7 @@ plot <- ggplot(wider, aes(
   geom_vline(
     xintercept = 0,
     linetype = "solid",
-    linewidth = 0.3,
+    linewidth = 0.4,
     colour = "black"
   ) +
   geom_effect(
