@@ -4,13 +4,13 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from .base import NonparametricResampler
+from .base import Resampler
 
 # The node in the hierarchy tree
 HierarchyNode = dict[Any, "HierarchyNode"] | npt.NDArray
 
 
-class HierarchicalResampler(NonparametricResampler):
+class HierarchicalResampler(Resampler):
     """
     Resampler for hierarchical data.
 
@@ -48,9 +48,19 @@ class HierarchicalResampler(NonparametricResampler):
     ValueError
         If ``data_sample`` is empty.
         If ``hierarchy`` is empty.
+        If ``hierarcy`` contains duplicate columns.
         If all columns in ``hierarchy`` aren't in the ``data_sample``.
     TypeError
         If ``data_sample`` is not a Pandas DataFrame.
+
+    Notes
+    -----
+    Hierarchy columns are treated as group identifiers. Bootstrap samples relabel
+    group occurrences so that repeated draws of the same original group are represented
+    as distinct groups.
+
+    Consequently, the hierarchy columns should not simultaneously be used as variables whose
+    original labels are required by the statistic.
     """
 
     def __init__(
@@ -82,6 +92,9 @@ class HierarchicalResampler(NonparametricResampler):
         # Group columns and replacement strategies
         self._hierarchy_cols, self._group_replacement = zip(*hierarchy)
 
+        if len(set(self._hierarchy_cols)) != len(self._hierarchy_cols):
+            raise ValueError("Columns defined in the hierarchy must be unique!")
+
         missing = set(self._hierarchy_cols) - set(self._data_sample.columns)
         if missing:
             raise ValueError(f"Missing hierarchy columns: {missing}")
@@ -106,7 +119,10 @@ class HierarchicalResampler(NonparametricResampler):
 
         # Pandas >=3.0 has observed=True as default (can be problematic with categorical columns)
         grouped_data = self._data_sample.groupby(
-            list(self._hierarchy_cols), sort=False, observed=True
+            list(self._hierarchy_cols),
+            sort=False,
+            observed=True,
+            dropna=True,
         ).indices
 
         for keys, idx in grouped_data.items():
@@ -124,12 +140,9 @@ class HierarchicalResampler(NonparametricResampler):
 
         return root
 
-    def _draw_indices(
-        self,
-        rng: np.random.Generator,
-    ) -> npt.NDArray:
+    def draw_sample(self, rng: np.random.Generator) -> pd.DataFrame:
         """
-        Generate bootstrap sample indices according to the configured hierarchy.
+        Generate a bootstrap sample according to the configured hierarchy.
 
         Groups are recursively traversed from the highest to the lowest level.
         At each level, groups are either resampled with replacement or visited
@@ -146,44 +159,68 @@ class HierarchicalResampler(NonparametricResampler):
 
         Returns
         -------
-        npt.NDArray
-            Array of row indices defining the bootstrap sample.
-        """
+        pd.DataFrame
 
-        indices = []
+        """
+        cases: list[pd.DataFrame] = []
+        # Since we are doing nested resampling and might repeat a group,
+        # we have to make sure that the group labels aren't duplicated when we
+        # sample with replacement (so if we sample group A twice we don't run into a problem
+        # of having one big group A but rather two relabeled groupd A_1, A_2). This
+        # is very important for fitting hierarchical models.
+        next_labels = [0] * len(self._hierarchy_cols)
 
         def build_sample(
             node: HierarchyNode,
             depth: int = 0,
+            bootstrap_labels: tuple[int, ...] = (),
         ) -> None:
             if not isinstance(node, dict):
                 if self._observation_replacement:
-                    # Resample individual observations with replacement
-                    indices.append(rng.choice(node, len(node), replace=True))
+                    sampled_indices = rng.choice(
+                        node, size=len(node), replace=True
+                    )
                 else:
-                    # Add all observations
-                    indices.append(node)
+                    sampled_indices = node
+
+                sample = self._data_sample.iloc[sampled_indices].copy()
+
+                # Relabel the groups
+                for level, column in enumerate(self._hierarchy_cols):
+                    sample[column] = bootstrap_labels[level]
+
+                cases.append(sample)
+
                 return
 
             keys = list(node.keys())
 
-            # Use the strategy to determine if we should resample keys with replacement
+            # See whether the strategy requires resampling with replacement
             if self._group_replacement[depth]:
-                key_idx = rng.integers(
-                    len(keys),
+                selected_group_ids = rng.integers(
+                    low=0,
+                    high=len(keys),
                     size=len(keys),
                 )
-                resampled_keys = [keys[i] for i in key_idx]
             else:
-                resampled_keys = keys
+                selected_group_ids = np.arange(len(keys))
 
-            for key in resampled_keys:
-                build_sample(node[key], depth + 1)  # ty:ignore[invalid-argument-type]
+            for group_id in selected_group_ids:
+                # Depth determines the hierarchy level
+                new_group_label = next_labels[depth]
+                # Increase the counter in order to prevent duplication of groups
+                next_labels[depth] += 1
+
+                build_sample(
+                    node[keys[group_id]],
+                    depth=depth + 1,
+                    bootstrap_labels=bootstrap_labels + (new_group_label,),
+                )
 
         build_sample(self._hierarchy_tree)
 
-        # Concatenate the sampled row indices
-        return np.concatenate(indices)
+        # Create the new data frame and reindex the rows
+        return pd.concat(cases, ignore_index=True)
 
     def with_data(
         self,
