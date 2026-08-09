@@ -302,7 +302,9 @@ class Bootstrap:
             Use cached values of bootstrap estimates and second level cdf evals.
             Only use this if you want to multiple CIs from the same bootstrap resamples.
             This can significantly speed up computation, especially for computationally heavy
-            statistics that may require model fitting. Defaults to False.
+            statistics that may require model fitting. Note that n_jobs, seed,
+            b1_resamples and b2_resamples aren't used if set to True but are
+            still checked for correctness. Defaults to False.
 
         Returns
         -------
@@ -334,8 +336,8 @@ class Bootstrap:
             b2_resamples,
             q_est_method,
             n_jobs,
-            use_cached,
             ss,
+            use_cached,
         )
 
     def percentile_ci(
@@ -376,10 +378,12 @@ class Bootstrap:
         seed : int, optional
             Seed for the random number genertion process. Defaults to None.
         use_cached: bool, optional
-            Use cached values of bootstrap estimates and second level cdf evals.
-            Only use this if you want to multiple CIs from the same bootstrap resamples.
-            This can significantly speed up computation, especially for computationally heavy
-            statistics that may require model fitting. Defaults to False.
+            Use cached values of bootstrap estimates. Only use this if you want
+            multiple CIs from the same bootstrap resamples. This can significantly
+            speed up computation, especially for computationally heavy statistics
+            that may require model fitting. Note that n_jobs, seed and b_resamples
+            are ignored if set to True but are still checked for correctness.
+            Defaults to False.
 
         Returns
         -------
@@ -404,8 +408,8 @@ class Bootstrap:
             b_resamples,
             q_est_method,
             n_jobs,
-            use_cached,
             rng,
+            use_cached,
         )
 
     def _percentile_ci(
@@ -415,8 +419,8 @@ class Bootstrap:
         b_resamples: int,
         q_est_method: QuantileEstimationMethod,
         n_jobs: int,
-        use_cached: bool,
         rng: np.random.Generator,
+        use_cached: bool,
     ) -> ConfidenceInterval:
         """
         Internal method that computes the CI using the percentile bootstrap method.
@@ -430,13 +434,14 @@ class Bootstrap:
             "upper" for one-sided.
         b_resamples : int
             Number of bootstrap resamples.
-        use_cached: bool
-            Use cached values of bootstrap estimates and second level cdf evals.
-            Only use this if you want to multiple CIs from the same bootstrap resamples.
-            This can significantly speed up computation, especially for computationally heavy
-            statistics that may require model fitting.
         rng: np.random.Generator,
             NumPy random number generator.
+        use_cached: bool
+            Use cached values of bootstrap estimates. Only use this if you want
+            multiple CIs from the same bootstrap resamples. This can significantly
+            speed up computation, especially for computationally heavy statistics
+            that may require model fitting. Note that n_jobs, seed and b_resamples
+            are ignored if set to True. Defaults to False.
 
         Returns
         -------
@@ -522,8 +527,8 @@ class Bootstrap:
         b2: int,
         q_est_method: QuantileEstimationMethod,
         n_jobs: int,
-        use_cached: bool,
         ss: np.random.SeedSequence,
+        use_cached: bool,
     ) -> ConfidenceInterval:
         """
         Internal method that computes the CI using the double percentile
@@ -536,25 +541,25 @@ class Bootstrap:
         side : {"two", "lower", "upper"}
             The sideness of the interval. "two" for two-sided and "lower",
             "upper" for one-sided.
-        b1 : int, optional
+        b1 : int
             Number of bootstrap resamples in the first level.
-        b2 : int, optional
+        b2 : int
             Number of bootstrap resamples in the second level for calibration
             of the percentile method.
-        q_est_method: QuantileEstimationMethod, optional
+        q_est_method: QuantileEstimationMethod
             Method for quantile estimation. Passed as ``numpy.quantile``'s argument ``method``.
-        n_jobs: int, optional
+        n_jobs: int
             Number of jobs used for the double bootstrap procedure.
             Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
-            Defaults to 1.
+        ss: np.random.SeedSequence
+            A seed sequence object which allows for a reproducible way to set the
+            initial state for independent and very probably non-overlapping BitGenerators.
         use_cached: bool
             Use cached values of bootstrap estimates and second level cdf evals.
             Only use this if you want to multiple CIs from the same bootstrap resamples.
             This can significantly speed up computation, especially for computationally heavy
-            statistics.
-        ss: np.random.SeedSequence
-            A seed sequence object which allows for a reproducible way to set the
-            initial state for independent and very probably non-overlapping BitGenerators.
+            statistics that may require model fitting. Note that n_jobs, seed,
+            b1_resamples and b2_resamples are ignored if set to True.
 
         Returns
         -------
