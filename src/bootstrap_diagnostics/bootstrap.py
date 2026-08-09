@@ -270,8 +270,9 @@ class Bootstrap:
         b2_resamples: int = 250,
         q_est_method: QuantileEstimationMethod = "median_unbiased",
         n_jobs: int = 1,
-        use_cached: bool = False,
         seed: int | None = None,
+        *,
+        use_cached: bool = False,
     ) -> ConfidenceInterval:
         """
         Compute a double percentile confidence interval for the provided statistic.
@@ -295,13 +296,13 @@ class Bootstrap:
             Number of concurrent jobs used for the bootstrap procedure.
             Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
             Defaults to 1.
+        seed : int, optional
+            Seed for the random number genertion process. Defaults to None.
         use_cached: bool, optional
             Use cached values of bootstrap estimates and second level cdf evals.
             Only use this if you want to multiple CIs from the same bootstrap resamples.
             This can significantly speed up computation, especially for computationally heavy
-            statistics. Defaults to False.
-        seed : int, optional
-            Seed for the random number genertion process. Defaults to None.
+            statistics that may require model fitting. Defaults to False.
 
         Returns
         -------
@@ -345,6 +346,8 @@ class Bootstrap:
         q_est_method: QuantileEstimationMethod = "median_unbiased",
         n_jobs: int = 1,
         seed: int | None = None,
+        *,
+        use_cached: bool = False,
     ) -> ConfidenceInterval:
         """
         Compute a percentile confidence interval of the sample data.
@@ -372,6 +375,11 @@ class Bootstrap:
             batch resampling.
         seed : int, optional
             Seed for the random number genertion process. Defaults to None.
+        use_cached: bool, optional
+            Use cached values of bootstrap estimates and second level cdf evals.
+            Only use this if you want to multiple CIs from the same bootstrap resamples.
+            This can significantly speed up computation, especially for computationally heavy
+            statistics that may require model fitting. Defaults to False.
 
         Returns
         -------
@@ -396,6 +404,7 @@ class Bootstrap:
             b_resamples,
             q_est_method,
             n_jobs,
+            use_cached,
             rng,
         )
 
@@ -406,6 +415,7 @@ class Bootstrap:
         b_resamples: int,
         q_est_method: QuantileEstimationMethod,
         n_jobs: int,
+        use_cached: bool,
         rng: np.random.Generator,
     ) -> ConfidenceInterval:
         """
@@ -420,6 +430,11 @@ class Bootstrap:
             "upper" for one-sided.
         b_resamples : int
             Number of bootstrap resamples.
+        use_cached: bool
+            Use cached values of bootstrap estimates and second level cdf evals.
+            Only use this if you want to multiple CIs from the same bootstrap resamples.
+            This can significantly speed up computation, especially for computationally heavy
+            statistics that may require model fitting.
         rng: np.random.Generator,
             NumPy random number generator.
 
@@ -427,12 +442,41 @@ class Bootstrap:
         -------
         ConfidenceInterval
             The computed bootstrap confidence interval.
-        """
-        estimate = np.asarray(self._evaluate_statistic(self._data_sample))
 
-        bootstrap_replicates = self._bootstrap_replicates(
-            b_resamples, rng=rng, n_jobs=n_jobs, estimate_shape=estimate.shape
-        )
+        Raises
+        ------
+        ValueError
+            If ``use_cached=True`` and cached data isn't available.
+        """
+        if not use_cached:
+            # Compute the estimates
+            estimate = np.asarray(self._evaluate_statistic(self._data_sample))
+
+            bootstrap_replicates = self._bootstrap_replicates(
+                b_resamples,
+                rng=rng,
+                n_jobs=n_jobs,
+                estimate_shape=estimate.shape,
+            )
+            # Cache the data
+            self._cached_estimate = estimate
+            self._cached_l1_estimates = bootstrap_replicates
+            # Clear the cdf evals to not run into weird problems later
+            self._cached_cdf_evals = None
+        else:
+            # See if cached data is available
+            if (
+                self._cached_estimate is None
+                or self._cached_l1_estimates is None
+            ):
+                raise ValueError(
+                    "No cached bootstrap estimates are available. Call percentile_ci with use_cached=False first."
+                )
+
+            # Read the cached values to use for computation
+            estimate = self._cached_estimate
+            bootstrap_replicates = self._cached_l1_estimates
+
         alpha = 1 - confidence_level
 
         match side:
@@ -520,7 +564,7 @@ class Bootstrap:
         Raises
         ------
         ValueError
-
+            If ``use_cached=True`` and cached data isn't available.
         """
 
         if not use_cached:
