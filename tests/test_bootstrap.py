@@ -139,6 +139,48 @@ def test_double_percentile_ci_consistent_across_execution_modes(
     _assert_ci_equal(result, expected)
 
 
+def test_double_percentile_ci_uses_cached_resamples(sample):
+    bootstrap = _bootstrap(sample, vectorized=False)
+
+    # Fill the cache with the given seed
+    bootstrap.double_percentile_ci(
+        confidence_level=0.9,
+        b1_resamples=20,
+        b2_resamples=15,
+        seed=SEED,
+    )
+
+    # Use the cached values to compute the double percentile CI
+    result = bootstrap.double_percentile_ci(
+        confidence_level=0.95,
+        b1_resamples=20,
+        b2_resamples=15,
+        use_cached=True,
+    )
+
+    # Recompute the double percentile CI (no caching)
+    expected = _bootstrap(sample, vectorized=False).double_percentile_ci(
+        confidence_level=0.95,
+        b1_resamples=20,
+        b2_resamples=15,
+        seed=SEED,
+    )
+
+    # We expect the intervals to match
+    _assert_ci_equal(result, expected)
+
+
+def test_double_percentile_ci_rejects_missing_cache(sample):
+    bootstrap = _bootstrap(sample, vectorized=False)
+
+    with pytest.raises(ValueError, match="No cached bootstrap estimates"):
+        bootstrap.double_percentile_ci(
+            b1_resamples=20,
+            b2_resamples=15,
+            use_cached=True,
+        )
+
+
 def _column_mean(data):
     return np.mean(data, axis=0)
 

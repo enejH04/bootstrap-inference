@@ -111,6 +111,11 @@ class Bootstrap:
                 stacklevel=2,
             )
 
+        # Cache estimates to make CI construction faster
+        self._cached_estimate: npt.NDArray | None = None
+        self._cached_l1_estimates: npt.NDArray | None = None
+        self._cached_cdf_evals: npt.NDArray | None = None
+
     def _evaluate_statistic(
         self, data: npt.NDArray | pd.DataFrame
     ) -> npt.NDArray | float:
@@ -265,6 +270,7 @@ class Bootstrap:
         b2_resamples: int = 250,
         q_est_method: QuantileEstimationMethod = "median_unbiased",
         n_jobs: int = 1,
+        use_cached: bool = False,
         seed: int | None = None,
     ) -> ConfidenceInterval:
         """
@@ -289,6 +295,11 @@ class Bootstrap:
             Number of concurrent jobs used for the bootstrap procedure.
             Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
             Defaults to 1.
+        use_cached: bool, optional
+            Use cached values of bootstrap estimates and second level cdf evals.
+            Only use this if you want to multiple CIs from the same bootstrap resamples.
+            This can significantly speed up computation, especially for computationally heavy
+            statistics. Defaults to False.
         seed : int, optional
             Seed for the random number genertion process. Defaults to None.
 
@@ -322,6 +333,7 @@ class Bootstrap:
             b2_resamples,
             q_est_method,
             n_jobs,
+            use_cached,
             ss,
         )
 
@@ -466,6 +478,7 @@ class Bootstrap:
         b2: int,
         q_est_method: QuantileEstimationMethod,
         n_jobs: int,
+        use_cached: bool,
         ss: np.random.SeedSequence,
     ) -> ConfidenceInterval:
         """
@@ -490,6 +503,11 @@ class Bootstrap:
             Number of jobs used for the double bootstrap procedure.
             Follows the Joblib convention: -1 tries to use all CPUs, 1 disables parallelism.
             Defaults to 1.
+        use_cached: bool
+            Use cached values of bootstrap estimates and second level cdf evals.
+            Only use this if you want to multiple CIs from the same bootstrap resamples.
+            This can significantly speed up computation, especially for computationally heavy
+            statistics.
         ss: np.random.SeedSequence
             A seed sequence object which allows for a reproducible way to set the
             initial state for independent and very probably non-overlapping BitGenerators.
@@ -498,48 +516,74 @@ class Bootstrap:
         -------
         ConfidenceInterval
             The computed bootstrap confidence interval.
+
+        Raises
+        ------
+        ValueError
+
         """
 
-        # Evaluate the statistic on the original sample (needed for calibration)
-        estimate = np.asarray(self._evaluate_statistic(self._data_sample))
+        if not use_cached:
+            # Evaluate the statistic on the original sample (needed for calibration)
+            estimate = np.asarray(self._evaluate_statistic(self._data_sample))
 
-        # Spawn a sequence of seed sequences used for seeding independent bit-generators
-        # We need B1 + 1 of them since we also have to have an rng for the top level
-        ss_array = ss.spawn(b1 + 1)
+            # Spawn a sequence of seed sequences used for seeding independent bit-generators
+            # We need B1 + 1 of them since we also have to have an rng for the top level
+            ss_array = ss.spawn(b1 + 1)
 
-        # Outer bootstrap RNG to resample datasets from the original sample
-        # that belongs to self.resampler
-        rng_outer = np.random.default_rng(ss_array[0])
+            # Outer bootstrap RNG to resample datasets from the original sample
+            # that belongs to self.resampler
+            rng_outer = np.random.default_rng(ss_array[0])
 
-        # Derive the seeds for all B1 jobs using the seed sequences computed
-        # from the original sequence
-        ss_l2 = ss_array[1:]
+            # Derive the seeds for all B1 jobs using the seed sequences computed
+            # from the original sequence
+            ss_l2 = ss_array[1:]
 
-        # Delegate the tasks
-        results = Parallel(n_jobs=n_jobs)(
-            delayed(Bootstrap._process_b1)(
-                estimate,
-                self._resampler.draw_sample(rng_outer),
-                self._resampler,
-                self._statistic,
-                b2,
-                ss_l2[i],
-                self._vectorized,
-                self._axis,
+            # Delegate the tasks
+            results = Parallel(n_jobs=n_jobs)(
+                delayed(Bootstrap._process_b1)(
+                    estimate,
+                    self._resampler.draw_sample(rng_outer),
+                    self._resampler,
+                    self._statistic,
+                    b2,
+                    ss_l2[i],
+                    self._vectorized,
+                    self._axis,
+                )
+                for i in range(b1)
             )
-            for i in range(b1)
-        )
 
-        # zip((1, 2), (3, 4)) = (1, 3), (2, 4)
-        # Since we are working with potentially multi-dimensional statistics,
-        # we need to store the estimates in an array of the same shape as the
-        # statistic output, but with an additional dimension for the
-        # number of resamples.
-        # For example, if the statistic is a vector of length k, the shape of
-        # l1_estimates will be (B1, k) (basically stack them on top of each other)
-        l1_estimates, cdf_evals = zip(*results)
-        l1_estimates = np.asarray(l1_estimates)
-        cdf_evals = np.asarray(cdf_evals)
+            # zip((1, 2), (3, 4)) = (1, 3), (2, 4)
+            # Since we are working with potentially multi-dimensional statistics,
+            # we need to store the estimates in an array of the same shape as the
+            # statistic output, but with an additional dimension for the
+            # number of resamples.
+            # For example, if the statistic is a vector of length k, the shape of
+            # l1_estimates will be (B1, k) (basically stack them on top of each other)
+            l1_estimates, cdf_evals = zip(*results)
+            l1_estimates = np.asarray(l1_estimates)
+            cdf_evals = np.asarray(cdf_evals)
+
+            # Cache the newly computed results
+            self._cached_estimate = estimate
+            self._cached_l1_estimates = l1_estimates
+            self._cached_cdf_evals = cdf_evals
+        else:
+            # Check that the cache isn't empty
+            if (
+                self._cached_estimate is None
+                or self._cached_l1_estimates is None
+                or self._cached_cdf_evals is None
+            ):
+                raise ValueError(
+                    "No cached bootstrap estimates are available. Call double_percentile_ci with use_cached=False first."
+                )
+
+            # Read the cache
+            estimate = self._cached_estimate
+            l1_estimates = self._cached_l1_estimates
+            cdf_evals = self._cached_cdf_evals
 
         # Quantile estimation method
         alpha = 1 - confidence_level
