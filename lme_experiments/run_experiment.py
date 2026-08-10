@@ -4,7 +4,11 @@ import numpy as np
 
 from bootstrap_diagnostics import Bootstrap, HierarchicalResampler
 from lme_experiments.generate_synthetic import generate_hierarchical_dataset
-from lme_experiments.r_interface import compute_profile_cis, statistic
+from lme_experiments.r_interface import (
+    compute_parametric_percentile_ci,
+    compute_profile_likelihood_cis,
+    statistic,
+)
 
 # Ignore library DataFrame warnings about performance
 warnings.filterwarnings("ignore")
@@ -13,9 +17,12 @@ warnings.filterwarnings("ignore")
 if __name__ == "__main__":
     df = generate_hierarchical_dataset(50, 4, 8, seed=42)
 
-    profile_cis = compute_profile_cis(df)
+    percentile_cis = compute_parametric_percentile_ci(df, B=1000, seed=40)
 
-    print(profile_cis)
+    print(percentile_cis)
+    # profile_cis = compute_profile_cis(df)
+
+    # print(profile_cis)
 
     # resampler = HierarchicalResampler(
     #     data_sample=df,
