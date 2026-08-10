@@ -10,42 +10,25 @@ from lme_experiments.r_interface import (
     statistic,
 )
 
-# Ignore library DataFrame warnings about performance
+# Ignore Bootstrap library DataFrame warnings about performance
 warnings.filterwarnings("ignore")
 
 
 if __name__ == "__main__":
-    df = generate_hierarchical_dataset(50, 4, 8, seed=42)
+    # Experiment size regimes
+    sizes = [
+        (5, 4, 8),
+        (50, 4, 8),
+    ]
 
-    percentile_cis = compute_parametric_percentile_ci(df, B=1000, seed=40)
+    rand_eff_dpgs = ["norm", "t", "lognorm"]
 
-    print(percentile_cis)
-    # profile_cis = compute_profile_cis(df)
+    # Repeat each experiment configuration 1000 times
+    n_repetitions = 1000
 
-    # print(profile_cis)
+    # Number of resamples at the top level of the bootstrap
+    B = 1000
+    # Number of resamples at the second level of the bootstrap
+    C = 10
 
-    # resampler = HierarchicalResampler(
-    #     data_sample=df,
-    #     hierarchy=[("l3", True), ("l2", True)],
-    #     observation_replacement=True,
-    # )
-    # boot = Bootstrap(statistic, resampler)
-
-    # ci = boot.double_percentile_ci(
-    #     confidence_level=0.95,
-    #     side="two",
-    #     b1_resamples=1000,
-    #     b2_resamples=10,
-    #     n_jobs=-1,
-    #     seed=52,
-    # )
-
-    # ci2 = boot.percentile_ci(
-    #     confidence_level=0.95,
-    #     side="two",
-    #     b_resamples=1000,
-    #     use_cached=True,
-    # )
-
-    # print(ci)
-    # print(ci2)
+    # run_paired_experiment(sizes=sizes, rand_eff_dpgs=rand_eff_dpgs, )
