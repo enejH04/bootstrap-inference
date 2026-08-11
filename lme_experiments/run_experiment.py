@@ -279,7 +279,7 @@ if __name__ == "__main__":
     # Number of resamples at the top level of the bootstrap
     B = 1000
     # Number of resamples at the second level of the bootstrap
-    C = 10
+    C = 20
 
     run_paired_experiment(
         sizes=sizes,
