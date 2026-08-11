@@ -28,7 +28,7 @@ warnings.filterwarnings("ignore")
 BASE_SEED = 42
 
 # Change to desired number of cpus
-N_CPUS = 15
+N_CPUS = 16
 
 # Resampling strategy used during the cases bootstrap
 HIERARCHY = [("l3", True), ("l2", True)]
@@ -165,6 +165,7 @@ def run_paired_experiment(
         "n_cpus": N_CPUS,
         **DGP_CONFIG,
         "confidence_levels": LEVELS,
+        "n_repetitions": n_repetitions,
     }
 
     # Write the experiment config
