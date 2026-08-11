@@ -18,6 +18,8 @@ fit_model <- function(data) {
       lme4::lmer(
         formula = y ~ 1 + (1 | l3) + (1 | l3:l2),
         data = data,
+        # Might use this so that methods are all comparable with eachother
+        # REML = FALSE,
         # Ignore the singular fit warnings
         control = lme4::lmerControl(
           check.conv.singular = "ignore"
@@ -51,7 +53,7 @@ statistic <- function(data) {
 }
 
 # Util to avoid repeating the same concatenation
-concat_results <- function(intervals) {
+concat_results <- function(intervals, estimates) {
   # Concatenate the results together
   result <- cbind(intervals[[1]], intervals[[2]], intervals[[3]])
   result <- result[, c(5, 3, 1, 2, 4, 6)]
@@ -59,28 +61,32 @@ concat_results <- function(intervals) {
   colnames(result) <- c("0.025", "0.05", "0.25", "0.75", "0.95", "0.975")
   rownames(result) <- c("mu", "sd_l3", "sd_l2")
   
-  result
+  cbind(result, estimate = estimates)
 }
 
 # Used for the profile-likelihood CI
 # Compute them for multiple levels at the same time
-profile_cis <- function(data) {
+profile_cis <- function(data, n_cpus = 1) {
   model.lme <- fit_model(data)
+  
+  # Get the estimates from the model
+  estimates <- extract_model_components(model.lme)
+  
+  # Parameters we are interested in
+  parameters = c("(Intercept)", "sd_(Intercept)|l3", "sd_(Intercept)|l3:l2") 
   
   # Compute the profile once
   p <- suppressMessages(
     suppressWarnings(
       profile(
         model.lme,
+        which = parameters,
         parallel = "multicore",
-        ncpus = 16,
+        ncpus = n_cpus,
         signames = FALSE
       )
     )
   )
-  
-  # Parameters we are interested in
-  parameters = c("(Intercept)", "sd_(Intercept)|l3", "sd_(Intercept)|l3:l2") 
   
   # Compute two sided CI at different levels (we can use the bounds of 
   # two sided ones to construct one sided ones)
@@ -94,13 +100,16 @@ profile_cis <- function(data) {
     }
   )
   
-  concat_results(intervals)
+  concat_results(intervals, estimates)
 }
 
 # Used for parametric percentile bootstrap CI
 # Compute them for multiple levels at the same time
-parametric_boot_cis <- function(data, B = 1000, seed = NULL) {
+parametric_boot_cis <- function(data, B = 1000, seed = NULL, n_cpus = 1) {
   model.lme <- fit_model(data)
+  
+  # Get the estimates from the model
+  estimates <- extract_model_components(model.lme)
   
   # Compute bootstrap results
   boot <- lme4::bootMer(
@@ -111,7 +120,7 @@ parametric_boot_cis <- function(data, B = 1000, seed = NULL) {
     # Make sure random effects are resampled from the assumed normal distribution
     use.u = FALSE,
     parallel = "multicore",
-    ncpus = 16,
+    ncpus = n_cpus,
     nsim = B
   )
   
@@ -128,5 +137,5 @@ parametric_boot_cis <- function(data, B = 1000, seed = NULL) {
     }
   )
   
-  concat_results(intervals)
+  concat_results(intervals, estimates)
 }

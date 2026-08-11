@@ -14,7 +14,7 @@ def generate_hierarchical_dataset(
     var_l3: float = 0.3,
     var_l2: float = 0.3,
     var_l1: float = 0.4,
-    seed: int | None = None,
+    random_state: np.random.SeedSequence | int | None = None,
     random_eff_dist: EffectDist = "norm",
 ) -> pd.DataFrame:
     # For example l3: schools, l2: classrooms, l1: student scores on an exam
@@ -24,8 +24,8 @@ def generate_hierarchical_dataset(
     # We store 3 columns: level3 id, level2 id, and response
     data = np.empty(shape=(n_observations, 3))
 
-    # Get the rng based on the seed
-    rng = np.random.default_rng(seed)
+    # Get the rng based on the provided seed sequence
+    rng = np.random.default_rng(random_state)
 
     # Starting index of rows that we are filling up
     row = 0
@@ -88,7 +88,8 @@ if __name__ == "__main__":
     n_l2 = 4
     n_l1 = 8
 
-    df = generate_hierarchical_dataset(n_l3, n_l2, n_l1, seed=42)
+    ss = np.random.SeedSequence(123)
+    df = generate_hierarchical_dataset(n_l3, n_l2, n_l1, random_state=ss)
 
     resampler = HierarchicalResampler(
         data_sample=df,
