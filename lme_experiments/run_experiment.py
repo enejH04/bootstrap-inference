@@ -152,7 +152,7 @@ def run_paired_experiment(
     C: int,
     n_repetitions: int,
 ) -> None:
-    results_folder = Path(__file__).resolve().parent / "results"
+    results_folder = Path(__file__).resolve().parent / "results_pilot_linux"
     results_folder.mkdir(parents=True, exist_ok=True)
 
     # Write the experiment config to JSON
@@ -161,7 +161,7 @@ def run_paired_experiment(
         "sizes": sizes,
         "random_effect_dgps": rand_eff_dgps,
         "B": B,
-        "C": B,
+        "C": C,
         "n_cpus": N_CPUS,
         **DGP_CONFIG,
         "confidence_levels": LEVELS,
@@ -172,6 +172,9 @@ def run_paired_experiment(
         json.dump(config, f, indent=4)
 
     output_path = results_folder / "results.csv"
+
+    if output_path.exists():
+        output_path.unlink()
 
     n_scenarios = len(sizes) * len(rand_eff_dgps)
 
@@ -195,7 +198,11 @@ def run_paired_experiment(
 
                 # Derive the data and bootstrap seed
                 data_seed = ss_data.generate_state(1, dtype=np.uint64).item()
-                boot_seed = ss_boot.generate_state(1, dtype=np.uint64).item()
+
+                # R seed has to be limited
+                boot_seed = ss_boot.generate_state(
+                    1, dtype=np.uint32
+                ).item() % (2**31 - 1)
 
                 data_sample = generate_hierarchical_dataset(
                     n_l3=n_l3,
@@ -215,6 +222,7 @@ def run_paired_experiment(
                 # Parametric percentile confidence intervals
                 result_parametric_percentile = compute_parametric_percentile_ci(
                     data_sample,
+                    B=B,
                     n_cpus=N_CPUS,
                     seed=boot_seed,
                 )
@@ -239,7 +247,6 @@ def run_paired_experiment(
                 simulation_result["data_seed"] = data_seed
                 simulation_result["boot_seed"] = boot_seed
                 simulation_result["n_l3"] = n_l3
-                simulation_result["n_l3"] = n_l3
                 simulation_result["n_l2"] = n_l2
                 simulation_result["n_l1"] = n_l1
                 simulation_result["rand_eff_dgp"] = rand_eff_dgp
@@ -252,6 +259,8 @@ def run_paired_experiment(
                     mode="a",
                     index=False,
                 )
+            # Go to next scenario
+            scenario_idx += 1
 
 
 if __name__ == "__main__":
@@ -265,7 +274,7 @@ if __name__ == "__main__":
 
     # Repeat each experiment configuration 1000 times
     # n_repetitions = 1000
-    n_repetitions = 2
+    n_repetitions = 4
 
     # Number of resamples at the top level of the bootstrap
     B = 10
