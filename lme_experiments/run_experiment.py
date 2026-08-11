@@ -28,7 +28,7 @@ warnings.filterwarnings("ignore")
 BASE_SEED = 42
 
 # Change to desired number of cpus
-N_CPUS = 16
+N_CPUS = 15
 
 # Resampling strategy used during the cases bootstrap
 HIERARCHY = [("l3", True), ("l2", True)]
@@ -152,7 +152,7 @@ def run_paired_experiment(
     C: int,
     n_repetitions: int,
 ) -> None:
-    results_folder = Path(__file__).resolve().parent / "results_pilot_linux"
+    results_folder = Path(__file__).resolve().parent / "results"
     results_folder.mkdir(parents=True, exist_ok=True)
 
     # Write the experiment config to JSON
@@ -273,11 +273,10 @@ if __name__ == "__main__":
     rand_eff_dpgs: list[EffectDist] = ["norm", "t", "lognorm"]
 
     # Repeat each experiment configuration 1000 times
-    # n_repetitions = 1000
-    n_repetitions = 4
+    n_repetitions = 1000
 
     # Number of resamples at the top level of the bootstrap
-    B = 10
+    B = 1000
     # Number of resamples at the second level of the bootstrap
     C = 10
 
