@@ -1,4 +1,5 @@
 import json
+import sys
 import warnings
 from pathlib import Path
 
@@ -151,14 +152,19 @@ def run_paired_experiment(
     B: int,
     C: int,
     n_repetitions: int,
+    result_dir: str = "results",
 ) -> None:
-    results_folder = Path(__file__).resolve().parent / "results"
-    results_folder.mkdir(parents=True, exist_ok=True)
+    current_folder = Path(__file__).resolve().parent
+
+    results_folder = current_folder / result_dir
+
+    config_path = results_folder / "config.json"
+    output_path = results_folder / "results.csv"
 
     # Write the experiment config to JSON
     config = {
         "base_seed": BASE_SEED,
-        "sizes": sizes,
+        "sizes": [list(size) for size in sizes],
         "random_effect_dgps": rand_eff_dgps,
         "B": B,
         "C": C,
@@ -168,14 +174,60 @@ def run_paired_experiment(
         "n_repetitions": n_repetitions,
     }
 
-    # Write the experiment config
-    with open(results_folder / "config.json", "w", encoding="utf-8") as f:
-        json.dump(config, f, indent=4)
+    results_folder.mkdir(parents=True, exist_ok=True)
 
-    output_path = results_folder / "results.csv"
+    if config_path.exists():
+        with open(config_path, encoding="utf-8") as f:
+            stored_config = json.load(f)
+
+        if stored_config != config:
+            raise RuntimeError(
+                "Stored configuration does not match the current one. Please specify a different folder for the results."
+            )
+    else:
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f)
+
+    # The runs that have been completed
+    # {(rand_eff_dgp, n_l3, n_l2, n_l1, replication_id)}
+    completed_runs = set()
 
     if output_path.exists():
-        output_path.unlink()
+        existing_results = pd.read_csv(output_path)
+
+        expected_pairs = {
+            (method, stat)
+            for method in [
+                "profile-likelihood",
+                "parametric-percentile-boot",
+                "cases-percentile-boot",
+                "cases-double-boot",
+            ]
+            for stat in STATS
+        }
+
+        # These columns uniquely define each tested configuration
+        group_columns = [
+            "rand_eff_dgp",
+            "n_l3",
+            "n_l2",
+            "n_l1",
+            "replication_id",
+        ]
+
+        for key, group in existing_results.groupby(group_columns):
+            actual_pairs = set(zip(group["method"], group["stat"], strict=True))
+
+            if (
+                len(group) != len(expected_pairs)
+                or actual_pairs != expected_pairs
+            ):
+                raise RuntimeError(
+                    f"Incomplete or duplicated result block: {key}"
+                )
+
+            # If the group is ok, we can set it as completed
+            completed_runs.add(key)
 
     n_scenarios = len(sizes) * len(rand_eff_dgps)
 
@@ -195,6 +247,10 @@ def run_paired_experiment(
             ss = scenario_ss[scenario_idx].spawn(n_repetitions)
 
             for i in range(n_repetitions):
+                if (rand_eff_dgp, n_l3, n_l2, n_l1, i) in completed_runs:
+                    print("\t\tSKIPPING! Already computed")
+                    continue
+
                 ss_data, ss_boot = ss[i].spawn(2)
 
                 # Derive the data and bootstrap seed
@@ -278,14 +334,18 @@ if __name__ == "__main__":
     rand_eff_dpgs: list[EffectDist] = ["norm", "t", "lognorm"]
 
     # Repeat each experiment configuration 1000 times
-    n_repetitions = 1000
+    n_repetitions = 2
 
     # Number of resamples at the top level of the bootstrap
     B = 1000
     # Number of resamples at the second level of the bootstrap
-    C = 20
+    C = 50
+
+    # The first argument is the results folder inside the lme_experiments dir
+    dir = sys.argv[1]
 
     run_paired_experiment(
+        result_dir=dir,
         sizes=sizes,
         rand_eff_dgps=rand_eff_dpgs,
         B=B,

@@ -64,7 +64,7 @@ def compute_profile_likelihood_cis(
         profile_cis(r_df, n_cpus=n_cpus),
     )
 
-    return construct_ci_df(result, "likelihood-profile")
+    return construct_ci_df(result, "profile-likelihood")
 
 
 def compute_parametric_percentile_ci(
