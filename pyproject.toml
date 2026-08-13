@@ -1,7 +1,7 @@
 [project]
-name = "bootstrap-diagnostics"
+name = "DoubleBoot"
 version = "0.1.0"
-description = "Double bootstrap with diagnostic tests"
+description = "Extensible bootstrap inference in Python"
 readme = "README.md"
 authors = [
     { name = "enejH04", email = "hudobreznik.enej.04@gmail.com" }
