@@ -290,5 +290,5 @@ if __name__ == "__main__":
         rand_eff_dgps=rand_eff_dpgs,
         B=B,
         C=C,
-        n_repetitions=2,
+        n_repetitions=n_repetitions,
     )
