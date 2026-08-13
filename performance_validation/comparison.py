@@ -8,7 +8,7 @@ from generators import DGP, DGPBiNorm, DGPExp, DGPLogNorm, DGPNorm
 from numba import njit
 
 # Our library
-from bootstrap_diagnostics import Bootstrap, IIDResampler
+from double_boot import Bootstrap, IIDResampler
 
 # Base seed for seed sequence for repetitions
 BASE_SEED = 42

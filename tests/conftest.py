@@ -5,7 +5,7 @@ import numpy.typing as npt
 import pandas as pd
 import pytest
 
-from bootstrap_diagnostics import (
+from double_boot import (
     CircularBlockResampler,
     HierarchicalResampler,
     IIDResampler,

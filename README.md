@@ -1,4 +1,4 @@
-# Bootstrap diagnostics
+# DoubleBoot
 
 To install dependencies, run 
 

@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from bootstrap_diagnostics import (
+from double_boot import (
     Bootstrap,
     ConfidenceInterval,
     HierarchicalResampler,
