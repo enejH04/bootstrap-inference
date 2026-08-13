@@ -119,7 +119,7 @@ def compute_nonparametric_cases_ci(
                     b1_resamples=B,
                     b2_resamples=C,
                     q_est_method="median_unbiased",
-                    n_jobs=-1,
+                    n_jobs=N_CPUS,
                     seed=seed,
                     use_cached=True,
                 ),
@@ -131,7 +131,7 @@ def compute_nonparametric_cases_ci(
                 side="two",
                 b_resamples=B,
                 q_est_method="median_unbiased",
-                n_jobs=-1,
+                n_jobs=N_CPUS,
                 seed=seed,
                 use_cached=True,
             )
@@ -205,6 +205,10 @@ def run_paired_experiment(
                     1, dtype=np.uint32
                 ).item() % (2**31 - 1)
 
+                print(
+                    f"\t\tDGP={rand_eff_dgp}, sample_size={n_l3}x{n_l2}x{n_l1}, seeds={data_seed}, {boot_seed}, rep={i}"
+                )
+
                 data_sample = generate_hierarchical_dataset(
                     n_l3=n_l3,
                     n_l2=n_l2,
@@ -267,7 +271,7 @@ def run_paired_experiment(
 if __name__ == "__main__":
     # Experiment size regimes
     sizes = [
-        (5, 4, 8),
+        (15, 4, 8),
         (50, 4, 8),
     ]
 
@@ -286,5 +290,5 @@ if __name__ == "__main__":
         rand_eff_dgps=rand_eff_dpgs,
         B=B,
         C=C,
-        n_repetitions=n_repetitions,
+        n_repetitions=2,
     )
