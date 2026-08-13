@@ -82,7 +82,7 @@ def draw_effect(
 
 if __name__ == "__main__":
     # Test to see if balanced hierarchy is preserved
-    from bootstrap_diagnostics import HierarchicalResampler
+    from double_boot import HierarchicalResampler
 
     n_l3 = 5
     n_l2 = 4
