@@ -152,7 +152,7 @@ def run_paired_experiment(
     C: int,
     n_repetitions: int,
 ) -> None:
-    results_folder = Path(__file__).resolve().parent / "pilot_results_linux_2"
+    results_folder = Path(__file__).resolve().parent / "results"
     results_folder.mkdir(parents=True, exist_ok=True)
 
     # Write the experiment config to JSON
