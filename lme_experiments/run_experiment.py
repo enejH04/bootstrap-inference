@@ -163,6 +163,7 @@ def run_paired_experiment(
 
     # Write the experiment config to JSON
     config = {
+        "estimation": "ML",
         "base_seed": BASE_SEED,
         "sizes": [list(size) for size in sizes],
         "random_effect_dgps": rand_eff_dgps,
@@ -339,13 +340,13 @@ if __name__ == "__main__":
     # Number of resamples at the top level of the bootstrap
     B = 1000
     # Number of resamples at the second level of the bootstrap
-    C = 50
+    C = 40
 
     # The first argument is the results folder inside the lme_experiments dir
-    dir = sys.argv[1]
+    result_dir = sys.argv[1]
 
     run_paired_experiment(
-        result_dir=dir,
+        result_dir=result_dir,
         sizes=sizes,
         rand_eff_dgps=rand_eff_dpgs,
         B=B,

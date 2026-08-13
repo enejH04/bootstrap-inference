@@ -22,6 +22,9 @@ fit_model <- function(data) {
         lme4::lmer(
           formula = y ~ 1 + (1 | l3) + (1 | l3:l2),
           data = data,
+          # Use ML estimation since profile likelihood refits to ML
+          # and comparison is therefore cleaner
+          REML = FALSE,
           # Ignore the singular fit warnings
           control = lme4::lmerControl(
             check.conv.singular = "ignore"
