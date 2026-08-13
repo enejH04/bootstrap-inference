@@ -1,6 +1,6 @@
-# DoubleBoot
+# double-boot
 
-Extensible bootstrap inference in Python.
+Extensible (double) bootstrap inference in Python.
 
 To install dependencies, run 
 

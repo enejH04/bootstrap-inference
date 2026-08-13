@@ -1,5 +1,5 @@
 [project]
-name = "DoubleBoot"
+name = "double-boot"
 version = "0.1.0"
 description = "Extensible bootstrap inference in Python"
 readme = "README.md"
