@@ -334,7 +334,7 @@ if __name__ == "__main__":
 
     rand_eff_dpgs: list[EffectDist] = ["norm", "t", "lognorm"]
 
-    # Repeat each experiment configuration 1000 times
+    # Repeat each experiment configuration 500 times
     n_repetitions = 500
 
     # Number of resamples at the top level of the bootstrap
