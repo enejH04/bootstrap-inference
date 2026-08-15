@@ -5,17 +5,18 @@ from .base import TimeSeriesBlockResampler
 
 
 class CircularBlockResampler(TimeSeriesBlockResampler):
+    """
+    Generate bootstrap sample indices according to the circular block resampling strategy.
+
+    Given n observations and block length l, we have n possible starting points.
+    We sample ceil(n / l) blocks with replacement by randomly choosing their starting indices
+    from the range [0 ... n - 1]. Suppose we have sampled index i, then the sampled block
+    is of the form [i, (i + 1) mod n, ... (i + l - 1) mod n].
+
+    These blocks are then pasted together and truncated at length n to match the original time series size.
+    """
+
     def _draw_indices(self, rng: np.random.Generator) -> npt.NDArray:
-        """
-        Generate bootstrap sample indices according to the circular block resampling strategy.
-
-        Given n observations and block length l, we have n possible starting points.
-        We sample ceil(n / l) blocks with replacement by randomly choosing their starting indices
-        from the range [0 ... n - 1]. Suppose we have sampled index i, then the sampled block
-        is of the form [i, (i + 1) mod n, ... (i + l - 1) mod n].
-
-        These blocks are then pasted together and truncated at length n to match the original time series size.
-        """
         n = self.n_observations
 
         n_sampled_blocks = int(np.ceil(n / self._block_length))

@@ -1,18 +1,8 @@
-API reference
+Documentation
 =============
 
-Bootstrap
----------
+.. toctree::
+   :maxdepth: 2
 
-.. automodule:: double_boot.bootstrap
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Resamplers
-----------
-
-.. automodule:: double_boot.resamplers
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   bootstrap
+   resamplers
