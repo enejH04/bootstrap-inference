@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Extensible bootstrap inference in Python"
 readme = "README.md"
 authors = [
-    { name = "enejH04", email = "hudobreznik.enej.04@gmail.com" }
+    { name = "Enej Hudobreznik", email = "hudobreznik.enej.04@gmail.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [
