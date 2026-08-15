@@ -10,8 +10,9 @@ class MovingBlockResampler(TimeSeriesBlockResampler):
 
     Given n observations and block length l, we have n - l + 1 possible starting points.
     We sample ceil(n / l) blocks with replacement by randomly choosing their starting indices
-    from the range [0, ..., n - l]. These blocks are then pasted together and truncated
-    at length n to match the original time series size.
+    from the range [0, ..., n - l].
+
+    These blocks are then pasted together and truncated at length n to match the original time series size.
     """
 
     def _draw_indices(self, rng: np.random.Generator) -> npt.NDArray:

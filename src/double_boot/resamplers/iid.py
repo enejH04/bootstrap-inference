@@ -75,7 +75,7 @@ class IIDResampler(NonparametricResampler):
         Raises
         ------
         ValueError
-            If `b <= 0`.
+            If ``b <= 0``.
         TypeError
             If the data sample isn't a NumPy array
         """

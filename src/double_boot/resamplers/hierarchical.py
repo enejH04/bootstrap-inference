@@ -46,10 +46,11 @@ class HierarchicalResampler(Resampler):
     Raises
     ------
     ValueError
-        If ``data_sample`` is empty.
-        If ``hierarchy`` is empty.
-        If ``hierarcy`` contains duplicate columns.
-        If all columns in ``hierarchy`` aren't in the ``data_sample``.
+        If any of the following conditions are met:
+            ``data_sample`` is empty,
+            ``hierarchy`` is empty,
+            ``hierarcy`` contains duplicate columns,
+            all columns in ``hierarchy`` aren't in ``data_sample``.
     TypeError
         If ``data_sample`` is not a Pandas DataFrame.
 
@@ -58,7 +59,6 @@ class HierarchicalResampler(Resampler):
     Hierarchy columns are treated as group identifiers. Bootstrap samples relabel
     group occurrences so that repeated draws of the same original group are represented
     as distinct groups.
-
     Consequently, the hierarchy columns should not simultaneously be used as variables whose
     original labels are required by the statistic.
     """

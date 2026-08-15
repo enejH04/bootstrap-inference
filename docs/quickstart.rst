@@ -16,7 +16,7 @@ First, create a sample and select the IID resampling strategy:
    resampler = IIDResampler(data)
    bootstrap = Bootstrap(np.mean, resampler)
 
-Percentile confidence interval
+Percentile bootstrap confidence interval
 ------------------------------
 
 Use :meth:`~double_boot.Bootstrap.percentile_ci` for an ordinary percentile
@@ -54,6 +54,5 @@ interval with a second level of resampling:
 
    print(interval)
 
-The double bootstrap is more computationally expensive because each
-first-level resample produces a second set of bootstrap resamples. Therefore
-we allow the simulation to run within 5 processes by setting ``n_jobs = 5``.
+The double bootstrap is more computationally expensive as calibration requires
+a nested bootstrap. Therefore we allow the simulation to run within 5 processes by setting ``n_jobs = 5``.

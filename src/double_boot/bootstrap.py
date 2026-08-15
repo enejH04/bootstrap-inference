@@ -59,7 +59,7 @@ class Bootstrap:
     statistic : Callable[..., npt.NDArray | float]
         The function used to calculate the statistic of interest. Returns a NumPy array or float.
     resampler : Resampler
-        The ``Resampler`` that implements the desired resampling procedure.
+        The Resampler that implements the desired resampling procedure.
     vectorized: bool
         Whether the statistic should be applied to the resampled data in a vectorized manner. Defaults
         to False.
@@ -71,10 +71,10 @@ class Bootstrap:
     ------
     TypeError
         If any of the following conditions are met:
-        - If ``statistic`` is not callable.
-        - If ``resampler`` is not an instance of Resampler.
-        - The ``axis`` argument is invalid for the resamples
-        drawn from ``resampler``.
+            ``statistic`` is not callable,
+            ``resampler`` is not an instance of Resampler,
+            ``axis`` argument is invalid for the resamples
+            drawn from ``resampler``.
     """
 
     def __init__(

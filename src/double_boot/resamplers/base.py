@@ -51,9 +51,9 @@ class Resampler(ABC):
     ------
     ValueError
         If any of the following conditions are met:
-        - The input ``data_sample`` is empty.
-        - The ``axis`` argument is invalid for the given ``data_sample``.
-        - If ``axis != 0`` and ``data_sample`` is a Pandas DataFrame.
+            the input ``data_sample`` is empty,
+            the ``axis`` argument is invalid for the given ``data_sample``,
+            ``axis != 0`` and ``data_sample`` is a Pandas DataFrame.
 
     Notes
     -----
