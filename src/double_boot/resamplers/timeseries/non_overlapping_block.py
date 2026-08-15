@@ -13,7 +13,6 @@ class NonOverlappingBlockResampler(TimeSeriesBlockResampler):
     from the range [0 ... floor(n / l) - 1] * l. Suppose we have sampled index i, then the sampled block
     is of the form [i, i + 1, ..., i + l - 1].
 
-
     These blocks are then pasted together and truncated at length n to match the original time series size.
     """
 
