@@ -22,4 +22,4 @@ python:
     - method: uv
       command: sync
       groups:
-        - docs
+        - dev
