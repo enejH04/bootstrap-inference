@@ -14,7 +14,8 @@ class BatchResampler(Protocol):
         self, b: int, rng: np.random.Generator
     ) -> npt.NDArray:
         """
-        Generate a batch bootstrap resample of the data with shape (b, *data_sample.shape).
+        Generate a batch bootstrap resample of the data with shape
+        ``(b, *data_sample.shape)``.
 
         To ensure that the results are fully reproducible, use the provided
         NumPy random number generator for all random operations.
@@ -29,7 +30,7 @@ class BatchResampler(Protocol):
         Returns
         -------
         npt.NDArray
-            A batch of resampled datasets of size (b, *data_sample.shape).
+            A batch of resampled datasets of size ``(b, *data_sample.shape)``.
         """
         ...
 

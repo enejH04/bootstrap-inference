@@ -1,6 +1,6 @@
 [project]
 name = "double-boot"
-version = "0.1.0"
+version = "1.0.0"
 description = "Extensible bootstrap inference in Python"
 readme = "README.md"
 authors = [
@@ -21,6 +21,8 @@ build-backend = "uv_build"
 dev = [
     "pytest>=9.1.1",
     "ruff>=0.15.7",
+    "sphinx>=9.1.0",
+    "sphinx-rtd-theme>=3.1.0",
 ]
 lme-experiments = [
     "rpy2>=3.6.7",
