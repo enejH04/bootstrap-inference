@@ -25,9 +25,10 @@ bootstrap interval:
 .. code-block:: python
 
    interval = bootstrap.percentile_ci(
-       confidence_level=0.95,
-       b_resamples=1_000,
-       seed=42,
+      confidence_level=0.95,
+      side="two",
+      b_resamples=1_000,
+      seed=42,
    )
 
    print(interval.estimate)
@@ -46,6 +47,7 @@ interval with a second level of resampling:
 
    interval = bootstrap.double_percentile_ci(
        confidence_level=0.95,
+       side="two",
        b1_resamples=1_000,
        b2_resamples=1_000,
        n_jobs=5,

@@ -8,7 +8,7 @@ double-boot
 
 Extensible double bootstrap inference in Python.
 
-This library is the result of a BSc thesis completed at the University of Ljubljana, Faculty of Computer and Information Science (UL FRI), under the supervision of prof. dr. Erik Štrumbelj.
+This library is the result of a BSc thesis completed at the University of Ljubljana, Faculty of Computer and Information Science (UL FRI), under the supervision of Prof. Dr. Erik Štrumbelj.
 
 Check out the :doc:`quickstart` section to get started.
 
