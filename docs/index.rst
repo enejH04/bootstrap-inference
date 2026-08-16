@@ -18,6 +18,7 @@ Installation
 ------------
 
 **double-boot** is available on PyPI and can be installed with ``pip``
+
 .. code-block::
 
    pip install double-boot
