@@ -22,7 +22,7 @@ from double_boot import Bootstrap, IIDResampler
 
 rng = np.random.default_rng(42)
 
-# Generate 32 IID draws from a standard normal distirbution
+# Generate 32 IID draws from a standard normal distribution
 sample = rng.standard_normal(32)
 
 resampler = IIDResampler(data_sample=sample)
