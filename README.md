@@ -5,8 +5,8 @@ Extensible double bootstrap inference in Python.
 This library is the result of a BSc thesis completed at the University of Ljubljana, Faculty of Computer and Information Science (UL FRI), under the supervision of Prof. Dr. Erik Štrumbelj.
 
 - [Documentation](https://double-boot.readthedocs.io/en/latest/)
-- [Performance validation experiments](./performance_validation/)
-- [Hierarchical data experiments](./lme_experiments/)
+- [Performance validation experiments](https://github.com/enejH04/double-boot/tree/main/performance_validation)
+- [Hierarchical data experiments](https://github.com/enejH04/double-boot/tree/main/lme_experiments)
 
 ## A quick example
 

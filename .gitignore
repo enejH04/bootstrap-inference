@@ -28,3 +28,6 @@ wheels/
 _build
 _static
 _templates
+
+# Environment
+.env
