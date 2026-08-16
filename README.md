@@ -44,4 +44,14 @@ ci = boot.double_percentile_ci(
     n_jobs=5,
     seed=42,
 )
+
+print(ci)
+```
+The output is:
+```
+estimate = 0.06998925652242104
+lower = -0.27410311445480895
+upper = 0.400736328783347
+confidence level = 0.95
+side = two
 ```

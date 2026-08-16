@@ -40,7 +40,7 @@ class ConfidenceInterval:
     upper: npt.NDArray | float
 
     def __str__(self) -> str:
-        return f"estimate = {self.estimate}\nlower = {self.lower}\nupper = {self.upper}\nconfidence level = {self.confidence_level}, side = {self.side}"
+        return f"estimate = {self.estimate}\nlower = {self.lower}\nupper = {self.upper}\nconfidence level = {self.confidence_level}\nside = {self.side}"
 
 
 class Bootstrap:
