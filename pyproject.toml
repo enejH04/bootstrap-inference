@@ -1,6 +1,6 @@
 [project]
 name = "double-boot"
-version = "1.0.3"
+version = "1.0.4"
 description = "Extensible double bootstrap inference in Python."
 readme = "README.md"
 authors = [
@@ -12,6 +12,8 @@ dependencies = [
     "numpy>=2.4.2",
     "pandas>=3.0.1",
 ]
+license = "MIT"
+license-files = ["LICENSE"]
 
 [project.urls]
 Documentation = "https://double-boot.readthedocs.io/en/latest/"
