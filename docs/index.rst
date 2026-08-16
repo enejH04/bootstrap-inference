@@ -14,6 +14,14 @@ Check out the :doc:`quickstart` section to get started.
 
 Source code is available on `GitHub <https://github.com/enejH04/double-boot>`_.
 
+Installation
+------------
+
+**double-boot** is available on PyPI and can be installed with ``pip``
+.. code-block::
+
+   pip install double-boot
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:

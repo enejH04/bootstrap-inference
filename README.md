@@ -8,6 +8,14 @@ This library is the result of a BSc thesis completed at the University of Ljublj
 - [Performance validation experiments](https://github.com/enejH04/double-boot/tree/main/performance_validation)
 - [Hierarchical data experiments](https://github.com/enejH04/double-boot/tree/main/lme_experiments)
 
+## Installation
+
+double-boot is available on PyPI and can be installed with `pip`.
+
+```
+pip install double-boot
+```
+
 ## A quick example
 
 This example estimates the sample mean and constructs a two-sided 95%

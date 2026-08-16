@@ -1,6 +1,6 @@
 [project]
 name = "double-boot"
-version = "1.0.0"
+version = "1.0.2"
 description = "Extensible double bootstrap inference in Python."
 readme = "README.md"
 authors = [
