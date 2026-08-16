@@ -9,7 +9,7 @@
 project = "double-boot"
 copyright = "2026, Enej Hudobreznik"
 author = "Enej Hudobreznik"
-release = "1.0.2"
+release = "1.0.3"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
