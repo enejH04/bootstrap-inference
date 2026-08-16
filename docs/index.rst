@@ -17,7 +17,7 @@ Source code is available on `GitHub <https://github.com/enejH04/double-boot>`_.
 Installation
 ------------
 
-**double-boot** is available on PyPI and can be installed with ``pip``
+**double-boot** is available on PyPI and can be installed with ``pip``.
 
 .. code-block::
 
