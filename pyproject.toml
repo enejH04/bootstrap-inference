@@ -16,9 +16,9 @@ license = "MIT"
 license-files = ["LICENSE"]
 
 [project.urls]
-Documentation = "https://double-boot.readthedocs.io/en/latest/"
-Source = "https://github.com/enejH04/double-boot"
-Issues = "https://github.com/enejH04/double-boot/issues"
+Documentation = "https://bootstrap-inference.readthedocs.io"
+Source = "https://github.com/enejH04/bootstrap-inference"
+Issues = "https://github.com/enejH04/bootstrap-inference/issues"
 
 [build-system]
 requires = ["uv_build>=0.11.25,<0.12"]
