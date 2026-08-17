@@ -4,39 +4,39 @@ Resamplers
 Base interface
 --------------
 
-.. autoclass:: double_boot.Resampler
+.. autoclass:: bootstrap_inference.Resampler
    :members:
    :show-inheritance:
 
 Independent observations
 ------------------------
 
-.. autoclass:: double_boot.IIDResampler
+.. autoclass:: bootstrap_inference.IIDResampler
    :members:
    :show-inheritance:
 
 Hierarchical data
 -----------------
 
-.. autoclass:: double_boot.HierarchicalResampler
+.. autoclass:: bootstrap_inference.HierarchicalResampler
    :members:
    :show-inheritance:
 
 Time-series data
 ----------------
 
-.. autoclass:: double_boot.MovingBlockResampler
+.. autoclass:: bootstrap_inference.MovingBlockResampler
    :members:
    :show-inheritance:
 
-.. autoclass:: double_boot.CircularBlockResampler
+.. autoclass:: bootstrap_inference.CircularBlockResampler
    :members:
    :show-inheritance:
 
-.. autoclass:: double_boot.NonOverlappingBlockResampler
+.. autoclass:: bootstrap_inference.NonOverlappingBlockResampler
    :members:
    :show-inheritance:
 
-.. autoclass:: double_boot.StationaryBlockResampler
+.. autoclass:: bootstrap_inference.StationaryBlockResampler
    :members:
    :show-inheritance:

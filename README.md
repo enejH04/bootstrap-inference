@@ -26,7 +26,7 @@ First, create a sample and initialize the bootstrap procedure:
 
 ```python
 import numpy as np
-from double_boot import Bootstrap, IIDResampler
+from bootstrap_inference import Bootstrap, IIDResampler
 
 rng = np.random.default_rng(42)
 

@@ -6,10 +6,10 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "double-boot"
+project = "bootstrap-inference"
 copyright = "2026, Enej Hudobreznik"
 author = "Enej Hudobreznik"
-release = "1.0.4"
+release = "1.0.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

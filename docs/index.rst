@@ -1,12 +1,12 @@
-.. double-boot documentation master file, created by
+.. bootstrap-inference documentation master file, created by
    sphinx-quickstart on Sat Aug 15 17:10:32 2026.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-double-boot 
+bootstrap-inference
 =========================
 
-Extensible double bootstrap inference in Python.
+Extensible bootstrap inference in Python.
 
 This library is the result of a BSc thesis completed at the University of Ljubljana, Faculty of Computer and Information Science (UL FRI), under the supervision of Prof. Dr. Erik Štrumbelj.
 
@@ -17,11 +17,11 @@ Source code is available on `GitHub <https://github.com/enejH04/double-boot>`_.
 Installation
 ------------
 
-**double-boot** is available on PyPI and can be installed with ``pip``.
+**bootstrap-inference** is available on PyPI and can be installed with ``pip``.
 
 .. code-block::
 
-   pip install double-boot
+   pip install bootstrap-inference
 
 .. toctree::
    :maxdepth: 2

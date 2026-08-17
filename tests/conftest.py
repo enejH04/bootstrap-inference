@@ -5,7 +5,7 @@ import numpy.typing as npt
 import pandas as pd
 import pytest
 
-from double_boot import (
+from bootstrap_inference import (
     CircularBlockResampler,
     HierarchicalResampler,
     IIDResampler,

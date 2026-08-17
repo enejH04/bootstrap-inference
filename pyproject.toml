@@ -1,7 +1,7 @@
 [project]
-name = "double-boot"
-version = "1.0.4"
-description = "Extensible double bootstrap inference in Python."
+name = "bootstrap-inference"
+version = "1.0.0"
+description = "Extensible bootstrap inference in Python."
 readme = "README.md"
 authors = [
     { name = "Enej Hudobreznik", email = "hudobreznik.enej.04@gmail.com" }

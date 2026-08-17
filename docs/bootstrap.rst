@@ -1,7 +1,7 @@
 Bootstrap
 =========
 
-.. automodule:: double_boot.bootstrap
+.. automodule:: bootstrap_inference.bootstrap
    :members:
    :undoc-members:
    :show-inheritance:

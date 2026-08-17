@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from double_boot import Bootstrap, IIDResampler
+from bootstrap_inference import Bootstrap, IIDResampler
 
 SEED = 44
 

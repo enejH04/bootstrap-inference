@@ -10,7 +10,7 @@ First, create a sample and select the IID resampling strategy:
 
    import numpy as np
 
-   from double_boot import Bootstrap, IIDResampler
+   from bootstrap_inference import Bootstrap, IIDResampler
 
    data = np.array([2.1, 2.5, 2.7, 3.2, 3.5, 3.8, 4.1, 4.4])
    resampler = IIDResampler(data)
@@ -19,7 +19,7 @@ First, create a sample and select the IID resampling strategy:
 Percentile bootstrap confidence interval
 ------------------------------
 
-Use :meth:`~double_boot.Bootstrap.percentile_ci` for an ordinary percentile
+Use :meth:`~bootstrap_inference.Bootstrap.percentile_ci` for an ordinary percentile
 bootstrap interval:
 
 .. code-block:: python
@@ -40,7 +40,7 @@ more precise bootstrap inference is required.
 Double-bootstrap confidence interval
 ------------------------------------
 
-Use :meth:`~double_boot.Bootstrap.double_percentile_ci` to calibrate the
+Use :meth:`~bootstrap_inference.Bootstrap.double_percentile_ci` to calibrate the
 interval with a second level of resampling:
 
 .. code-block:: python
