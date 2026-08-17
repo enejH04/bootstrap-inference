@@ -10,8 +10,7 @@ supports arbitrary user-defined statistics and several resampling strategies:
 
 * IID resampling
 * Hierarchical resampling using the cases bootstrap
-* Moving, circular, non-overlapping, and stationary block resampling for
-   time series
+* Moving, circular, non-overlapping, and stationary block resampling for time series
 
 The library was developed as part of a BSc thesis at the University of
 Ljubljana, Faculty of Computer and Information Science (UL FRI), under the
@@ -40,8 +39,7 @@ Links
 
 * `Source code <https://github.com/enejH04/bootstrap-inference>`_
 * `Issue tracker <https://github.com/enejH04/bootstrap-inference/issues>`_
-* `Performance validation experiments
-<https://github.com/enejH04/bootstrap-inference/tree/main/performance_validation>`_
+* `Performance validation experiments <https://github.com/enejH04/bootstrap-inference/tree/main/performance_validation>`_
 * `Hierarchical data experiments <https://github.com/enejH04/bootstrap-inference/tree/main/lme_experiments>`_
 
 .. toctree::
