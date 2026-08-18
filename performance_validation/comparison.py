@@ -4,11 +4,17 @@ from pathlib import Path
 import bootstrap_ci as boot
 import numpy as np
 import pandas as pd
-from generators import DGP, DGPBiNorm, DGPExp, DGPLogNorm, DGPNorm
 from numba import njit
 
 # Our library
 from bootstrap_inference import Bootstrap, IIDResampler
+from performance_validation.generators import (
+    DGP,
+    DGPBiNorm,
+    DGPExp,
+    DGPLogNorm,
+    DGPNorm,
+)
 
 # Base seed for seed sequence for repetitions
 BASE_SEED = 42
