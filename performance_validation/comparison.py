@@ -9,7 +9,6 @@ from numba import njit
 # Our library
 from bootstrap_inference import Bootstrap, IIDResampler
 from performance_validation.generators import (
-    DGP,
     DGPBiNorm,
     DGPExp,
     DGPLogNorm,
