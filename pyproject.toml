@@ -33,12 +33,15 @@ dev = [
 ]
 lme-experiments = [
     "rpy2>=3.6.7",
+    "ipykernel>=7.2.0",
+    "scipy>=1.18.0",
 ]
 performance-validation = [
     "bootstrap-ci>=0.0.1",
     "ipykernel>=7.2.0",
     "matplotlib>=3.10.8",
     "numba>=0.66.0",
+    "scipy>=1.18.0",
 ]
 
 [tool.ruff]
