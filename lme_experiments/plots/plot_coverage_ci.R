@@ -53,7 +53,6 @@ plot <- ggplot(
     x = n_l3,
     y = estimate,
     colour = method,
-    shape = method,
   )
 ) +
   annotate(
@@ -90,8 +89,7 @@ plot <- ggplot(
   labs(
     x = "Število skupin na tretjem nivoju",
     y = "Verjetnost pokritja",
-    colour = "Metoda",
-    shape = "Metoda"
+    colour = "Metoda"
   ) +
   theme_bw() +
   theme(
