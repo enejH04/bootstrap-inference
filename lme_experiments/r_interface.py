@@ -1,3 +1,5 @@
+import os
+import sysconfig
 from pathlib import Path
 
 import numpy as np
@@ -5,6 +7,17 @@ import numpy.typing as npt
 import pandas as pd
 import rpy2.robjects as ro
 from rpy2.robjects import pandas2ri
+
+# This fixes some environment issues with running the R code in multiple
+# processes using joblib, where workers load the wrong Python due to rpy2
+# modifying the environment
+python_libdir = sysconfig.get_config_var("LIBDIR")
+
+if python_libdir:
+    existing = os.environ.get("LD_LIBRARY_PATH", "").split(os.pathsep)
+    paths = [python_libdir, *(p for p in existing if p and p != python_libdir)]
+    os.environ["LD_LIBRARY_PATH"] = os.pathsep.join(paths)
+
 
 # Function definitions in R
 R_DEFS = Path(__file__).resolve().parent / "lme4_helpers.R"
