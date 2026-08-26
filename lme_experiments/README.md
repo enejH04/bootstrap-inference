@@ -9,6 +9,12 @@ The full analysis is available in the [notebook](analysis.ipynb). We also provid
 
 To reproduce the results from the thesis, we recommend using [uv](https://docs.astral.sh/uv/).
 
+To install the necessary Python dependencies, run the following command from the repository root:
+
+```bash
+uv sync --frozen --group lme-experiments
+```
+
 This experiment also requires an active installation of [R](https://www.r-project.org/). For the simulation study, we used version 4.6.1. For fitting linear mixed effects models we used the [lme4](https://cran.r-project.org/web/packages/lme4/index.html) package version 2.0.6.
 
 The experiment stores `results.csv` and `config.json` in `lme_experiments/RESULTS_DIR`. Existing compatible results are resumed. Use a new directory when changing the experiment configuration.

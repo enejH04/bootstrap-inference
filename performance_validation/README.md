@@ -8,6 +8,12 @@ The full analysis is available in the [notebook](analysis.ipynb). We also provid
 
 To reproduce the results from the thesis, we recommend using [uv](https://docs.astral.sh/uv/).
 
+To install the necessary Python dependencies, run the following command from the repository root:
+
+```bash
+uv sync --frozen --group performance-validation
+```
+
 The experiment writes `performance_validation/results/results.csv`, replacing any existing file at that location.
 
 Note that the full simulation may take several hours depending on the available CPU resources. The exact numerical results may differ slightly across operating systems and hardware due to differences in floating-point arithmetic and execution. These differences should be minor and should not affect the conclusions of the analysis.
