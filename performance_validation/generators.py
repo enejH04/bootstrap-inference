@@ -1,5 +1,6 @@
 # DGP definitions adapted from:
 # https://github.com/zrimseku/bootstrap-simulation/blob/main/generators.py
+# See THIRD_PARTY_NOTICES.md at project root for copyright and licensing information.
 import numpy as np
 import numpy.typing as npt
 
