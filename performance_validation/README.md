@@ -11,6 +11,7 @@ To reproduce the results from the thesis, we recommend using [uv](https://docs.a
 To install the necessary Python dependencies, run the following command from the repository root:
 
 ```bash
+# Run from repository root
 uv sync --frozen --group performance-validation
 ```
 
