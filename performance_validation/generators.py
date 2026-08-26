@@ -1,5 +1,5 @@
 # DGP definitions adapted from:
-# https://github.com/zrimseku/Bootstrap-CI-analysis/blob/main/generators.py
+# https://github.com/zrimseku/bootstrap-simulation/blob/main/generators.py
 import numpy as np
 import numpy.typing as npt
 
